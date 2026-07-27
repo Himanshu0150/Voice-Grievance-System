@@ -1,0 +1,278 @@
+@media (max-width: 1024px) {
+  .sidebar {
+    display: none;
+  }
+
+  .dashboard-content {
+    padding: 20px;
+  }
+
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-card-wide {
+    grid-column: span 1;
+  }
+
+  .profile-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .reports-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .navbar-toggle {
+    display: block;
+  }
+
+  .navbar-menu {
+    display: none;
+    position: absolute;
+    top: var(--navbar-height);
+    left: 0;
+    right: 0;
+    background: var(--bg-header);
+    flex-direction: column;
+    padding: 14px 20px;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .navbar-menu.open {
+    display: flex;
+  }
+
+  .navbar-links {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .nav-link {
+    width: 100%;
+    padding: 12px 14px;
+  }
+
+  .navbar-profile {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 8px;
+  }
+
+  .profile-trigger {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .profile-dropdown {
+    position: static;
+    box-shadow: none;
+    border: 1px solid rgba(255,255,255,0.2);
+    margin-top: 8px;
+    background: rgba(255,255,255,0.1);
+    color: var(--text-white);
+  }
+
+  .dropdown-item {
+    color: var(--text-white);
+  }
+
+  .dropdown-item:hover {
+    background: rgba(255,255,255,0.2);
+    color: var(--text-white);
+  }
+
+  .dropdown-email {
+    color: rgba(255,255,255,0.6);
+  }
+
+  .dashboard-content {
+    padding: 16px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .hero-content h1 {
+    font-size: 32px;
+  }
+
+  .hero-content p {
+    font-size: var(--fs-body);
+  }
+
+  .complaint-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .contact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .welcome-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 24px;
+  }
+
+  .welcome-action {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .page-header h2 {
+    font-size: var(--fs-h3);
+  }
+
+  .table-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-bar {
+    max-width: 100%;
+  }
+
+  .toolbar-left {
+    flex-direction: column;
+  }
+
+  .detail-header {
+    flex-direction: column;
+  }
+
+  .detail-meta {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-card-content {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+  }
+
+  .hero-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .report-download-actions {
+    flex-direction: column;
+  }
+
+  .dashboard-quick-actions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-quick-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .steps-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid-detail {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .auth-card {
+    padding: 24px 20px;
+  }
+
+  .form-card {
+    padding: 20px;
+  }
+
+  .modal-body {
+    padding: 18px;
+  }
+
+  .modal-header {
+    padding: 16px 18px;
+  }
+
+  .hero-content h1 {
+    font-size: 26px;
+  }
+
+  .section-header h2 {
+    font-size: var(--fs-h2);
+  }
+
+  .page-container {
+    padding: 0;
+  }
+
+  .footer-content {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .footer-links {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .detail-images {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .action-btns {
+    flex-direction: column;
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pie-chart-wrapper {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 360px) {
+  .brand-sub {
+    display: none;
+  }
+
+  .profile-name {
+    display: none;
+  }
+}

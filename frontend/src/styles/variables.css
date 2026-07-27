@@ -1,0 +1,63 @@
+:root {
+  --primary: #1565C0;
+  --primary-dark: #0D47A1;
+  --primary-light: #E3F2FD;
+  --secondary: #2E7D32;
+  --secondary-dark: #1B5E20;
+  --secondary-light: #E8F5E9;
+  --accent: #FFB300;
+  --accent-dark: #FF8F00;
+  --accent-light: #FFF8E1;
+  --success: #43A047;
+  --success-light: #E8F5E9;
+  --warning: #FB8C00;
+  --warning-light: #FFF3E0;
+  --danger: #E53935;
+  --danger-dark: #C62828;
+  --danger-light: #FFEBEE;
+  --info: #0288D1;
+  --info-light: #E1F5FE;
+
+  --bg: #F5F7FA;
+  --bg-white: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-sidebar: #FFFFFF;
+  --bg-header: #1565C0;
+  --bg-footer: #0D47A1;
+
+  --text-primary: #212121;
+  --text-secondary: #616161;
+  --text-muted: #9E9E9E;
+  --text-white: #FFFFFF;
+
+  --border: #E0E0E0;
+  --border-light: #F0F0F0;
+  --border-focus: #1565C0;
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow: 0 2px 6px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.12);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.16);
+
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+
+  --font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-heading: 'Poppins', sans-serif;
+  --font-body: 'Poppins', sans-serif;
+
+  --navbar-height: 64px;
+  --sidebar-width: 250px;
+
+  --transition: all 0.2s ease;
+  --transition-slow: all 0.3s ease;
+
+  --fs-h1: 32px;
+  --fs-h2: 24px;
+  --fs-h3: 20px;
+  --fs-h4: 18px;
+  --fs-body: 16px;
+  --fs-small: 14px;
+  --fs-caption: 12px;
+}
