@@ -109,14 +109,15 @@ const smsService = {
         logger.info(`OTP sent via Fast2SMS to +91${phone}, Request ID: ${parsed.request_id || 'N/A'}`);
         break;
       }
-      default: {
-        logger.warn(`[DEV MODE] SMS_PROVIDER is set to "log". OTP ${otp} for +91${phone} was logged instead of sent via SMS.`);
+      case 'log': {
+        logger.warn(`SMS_PROVIDER is set to "log". OTP ${otp} for +91${phone} was logged instead of sent via SMS.`);
         logger.info(`[DEV SMS] To: +91${phone} | OTP: ${otp} | Message: ${message}`);
-        if (process.env.NODE_ENV === 'production') {
-          const err = new Error('SMS gateway not configured. Set SMS_PROVIDER and provider credentials in .env');
-          err.statusCode = 500;
-          throw err;
-        }
+        break;
+      }
+      default: {
+        const err = new Error(`Unknown SMS provider "${provider}". Set SMS_PROVIDER to one of: twilio, msg91, fast2sms, log`);
+        err.statusCode = 500;
+        throw err;
       }
     }
   }
