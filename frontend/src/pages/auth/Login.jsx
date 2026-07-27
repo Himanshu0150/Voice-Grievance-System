@@ -42,8 +42,7 @@ export default function Login() {
     setError('')
     setDevOtp('')
     try {
-      const res = await sendOtp(digits)
-      const payload = res.data || res
+      const payload = await sendOtp(digits)
       setMaskedPhone(payload.maskedPhone || digits.slice(0, 2) + '****' + digits.slice(-2))
       if (payload.otp) setDevOtp(payload.otp)
       setStep('otp')
@@ -124,8 +123,7 @@ export default function Login() {
     setDevOtp('')
     try {
       const digits = phone.replace(/\D/g, '')
-      const res = await sendOtp(digits)
-      const payload = res.data || res
+      const payload = await sendOtp(digits)
       if (payload.otp) setDevOtp(payload.otp)
       setResendTimer(30)
       otpRefs.current[0]?.focus()

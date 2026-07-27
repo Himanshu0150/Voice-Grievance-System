@@ -1,6 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
 import PublicLayout from './components/layout/PublicLayout'
-import DashboardLayout from './components/layout/DashboardLayout'
 import AdminLayout from './components/layout/AdminLayout'
 import ProtectedLayout from './components/layout/ProtectedLayout'
 import NotificationToast from './components/notifications/NotificationToast'

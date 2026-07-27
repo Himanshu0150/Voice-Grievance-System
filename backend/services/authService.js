@@ -76,7 +76,8 @@ const authService = {
 
     const maskedPhone = phone.slice(0, 2) + '****' + phone.slice(-2);
 
-    if (process.env.NODE_ENV === 'development') {
+    const isLogProvider = process.env.SMS_PROVIDER === 'log';
+    if (process.env.NODE_ENV === 'development' || isLogProvider) {
       logger.info(`[DEV OTP] OTP for +91${phone}: ${otp}`);
       return { maskedPhone, otp };
     }
@@ -126,7 +127,8 @@ const authService = {
 
     const maskedPhone = phone.slice(0, 2) + '****' + phone.slice(-2);
 
-    if (process.env.NODE_ENV === 'development') {
+    const isLogProvider = process.env.SMS_PROVIDER === 'log';
+    if (process.env.NODE_ENV === 'development' || isLogProvider) {
       logger.info(`[DEV OTP] Admin OTP for +91${phone}: ${otp}`);
       return { maskedPhone, otp };
     }
@@ -165,18 +167,15 @@ const authService = {
       throw err;
     }
 
+    db.run('DELETE FROM otp_verifications WHERE id = ?', [otpRecord.id]);
+    db.saveDatabase();
+
     const isMatch = await bcrypt.compare(otp, otpRecord.otp_hash);
     if (!isMatch) {
-      db.run('UPDATE otp_verifications SET attempts = attempts + 1 WHERE id = ?', [otpRecord.id]);
-      db.saveDatabase();
-      const attemptsLeft = MAX_ATTEMPTS - (otpRecord.attempts + 1);
-      const err = new Error(`Incorrect OTP. ${attemptsLeft} attempt(s) remaining.`);
+      const err = new Error('Invalid OTP. Please request a new OTP.');
       err.statusCode = 401;
       throw err;
     }
-
-    db.run('DELETE FROM otp_verifications WHERE id = ?', [otpRecord.id]);
-    db.saveDatabase();
 
     const user = User.findByPhone(phone);
     if (!user) {

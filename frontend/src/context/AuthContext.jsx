@@ -69,20 +69,6 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const verifyAdminOtp = async (phone, otp) => {
-    setError(null)
-    try {
-      const data = await authService.verifyAdminOtp(phone, otp)
-      localStorage.setItem('token', data.token)
-      setToken(data.token)
-      setUser(data.user)
-      return data
-    } catch (err) {
-      setError(err.response?.data?.message || 'OTP verification failed')
-      throw err
-    }
-  }
-
   const register = async (userData) => {
     setError(null)
     try {
