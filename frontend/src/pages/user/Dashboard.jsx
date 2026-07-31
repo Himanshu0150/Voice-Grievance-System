@@ -50,6 +50,8 @@ export default function UserDashboard() {
 
   if (error) return <ErrorState message={error} onRetry={loadData} />
 
+  const totalSupporters = (recentComplaints || []).reduce((sum, c) => sum + (c.supporterCount || 0), 0)
+
   return (
     <div className="page-container">
       <div className="welcome-card">
@@ -79,6 +81,13 @@ export default function UserDashboard() {
         <StatisticCard title="Pending" value={stats?.pending || 0} color="#FFC107" icon={<span>P</span>} />
         <StatisticCard title="In Progress" value={stats?.inProgress || 0} color="#0B5ED7" icon={<span>I</span>} />
         <StatisticCard title="Resolved" value={stats?.resolved || 0} color="#198754" icon={<span>R</span>} />
+      </div>
+
+      <div className="stats-grid-cards stats-grid-cards-small">
+        <StatisticCard title="Critical / High" value={stats?.critical || 0} color="#DC3545" icon={<span>C</span>} />
+        <StatisticCard title="Supporters Received" value={totalSupporters} color="#6F42C1" icon={<span>S</span>} />
+        <StatisticCard title="Avg. Impact Score" value={stats?.avgImpact != null ? stats.avgImpact.toFixed(1) : 0} color="#FD7E14" icon={<span>I</span>} />
+        <StatisticCard title="Avg. Resolution Days" value={stats?.avgResolutionDays != null ? stats.avgResolutionDays.toFixed(1) : 0} color="#20C997" icon={<span>D</span>} />
       </div>
 
       <div className="dashboard-grid">

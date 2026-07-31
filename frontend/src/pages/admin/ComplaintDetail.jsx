@@ -13,18 +13,24 @@ import { useNotification } from '../../context/NotificationContext'
 import { formatDateTime } from '../../utils/helpers'
 import { COMPLAINT_CATEGORIES } from '../../utils/constants'
 import adminService from '../../services/adminService'
+import complaintService from '../../services/complaintService'
 
 const statusOptions = [
   { value: 'Pending', label: 'Pending' },
+  { value: 'Assigned', label: 'Assigned' },
+  { value: 'Accepted', label: 'Accepted' },
+  { value: 'Work Started', label: 'Work Started' },
+  { value: 'Inspection', label: 'Inspection' },
   { value: 'In Progress', label: 'In Progress' },
   { value: 'Resolved', label: 'Resolved' },
   { value: 'Rejected', label: 'Rejected' }
 ]
 
 const priorityOptions = [
-  { value: 'Low', label: 'Low' },
+  { value: 'Critical', label: 'Critical' },
+  { value: 'High', label: 'High' },
   { value: 'Medium', label: 'Medium' },
-  { value: 'High', label: 'High' }
+  { value: 'Low', label: 'Low' }
 ]
 
 const categoryOptions = COMPLAINT_CATEGORIES.map(c => ({ value: c, label: c }))
@@ -34,6 +40,7 @@ export default function AdminComplaintDetail() {
   const navigate = useNavigate()
   const { success, error: showError } = useNotification()
   const [complaint, setComplaint] = useState(null)
+  const [timeline, setTimeline] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [status, setStatus] = useState('')
@@ -43,6 +50,7 @@ export default function AdminComplaintDetail() {
   const [remarks, setRemarks] = useState('')
   const [resolutionImages, setResolutionImages] = useState([])
   const [saving, setSaving] = useState(false)
+  const [escalating, setEscalating] = useState(false)
   const [editCategory, setEditCategory] = useState(false)
   const [newCategory, setNewCategory] = useState('')
   const [newDepartment, setNewDepartment] = useState('')
@@ -65,6 +73,14 @@ export default function AdminComplaintDetail() {
       setNewCategory(data.detectedCategory || data.category || '')
       setNewDepartment(data.departmentName || '')
       setNewConfidence(data.aiConfidence ? (data.aiConfidence * 100).toFixed(0) : '')
+      if (data.id) {
+        try {
+          const events = await complaintService.getTimeline(data.id)
+          setTimeline(events || [])
+        } catch {
+          setTimeline([])
+        }
+      }
     } catch {
       setError('Failed to load complaint')
     } finally {
@@ -99,6 +115,20 @@ export default function AdminComplaintDetail() {
       showError(err.response?.data?.message || 'Failed to update')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleEscalate = async () => {
+    setEscalating(true)
+    try {
+      const res = await adminService.escalateComplaint(id, { reason: remarks || undefined })
+      success(res.message || `Complaint escalated to ${res.escalatedToRole}`)
+      loadComplaint()
+      setRemarks('')
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to escalate')
+    } finally {
+      setEscalating(false)
     }
   }
 
@@ -152,9 +182,33 @@ export default function AdminComplaintDetail() {
               {complaint.departmentName && <span>Dept: <strong>{complaint.departmentName}</strong></span>}
               <span>Priority: <strong>{complaint.priority || 'Medium'}</strong></span>
               <span>Submitted: <strong>{formatDateTime(complaint.createdAt)}</strong></span>
-              <span>By: <strong>{complaint.userName}</strong></span>
-              <span>Village: <strong>{complaint.village}</strong></span>
-              <span>Phone: <strong>{complaint.phone || complaint.userName}</strong></span>
+              <span>By: <strong>{complaint.userName || 'Anonymous Citizen'}</strong></span>
+              <span>Village: <strong>{complaint.village || '-'}</strong></span>
+              <span>Phone: <strong>{complaint.phone || complaint.userName || '-'}</strong></span>
+            </div>
+            <div className="impact-info-grid">
+              {typeof complaint.impactScore === 'number' && (
+                <div className="impact-info-item">
+                  <label>Impact Score</label>
+                  <span>{complaint.impactScore}/100</span>
+                </div>
+              )}
+              <div className="impact-info-item">
+                <label>Supporters</label>
+                <span>{complaint.supporterCount || 0}</span>
+              </div>
+              {typeof complaint.estimatedResolutionDays === 'number' && (
+                <div className="impact-info-item">
+                  <label>Est. Resolution</label>
+                  <span>{complaint.estimatedResolutionDays} day{complaint.estimatedResolutionDays !== 1 ? 's' : ''}</span>
+                </div>
+              )}
+              {complaint.officerRecommendation && (
+                <div className="impact-info-item">
+                  <label>Officer Recommendation</label>
+                  <span>{complaint.officerRecommendation}</span>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -303,6 +357,13 @@ export default function AdminComplaintDetail() {
             <h4>Update Status</h4>
             <Select label="Status" name="status" value={status} onChange={(e) => setStatus(e.target.value)} options={statusOptions} />
             <Select label="Priority" name="priority" value={priority} onChange={(e) => setPriority(e.target.value)} options={priorityOptions} />
+            <Select
+              label="Assign Department"
+              name="departmentId"
+              value={departmentId}
+              onChange={(e) => setDepartmentId(e.target.value)}
+              options={[{ value: '', label: 'Unassigned' }, ...departments.map(d => ({ value: String(d.id), label: d.departmentName }))]}
+            />
             <Textarea label="Remarks" name="remarks" value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="Add admin remarks..." rows={3} />
             {status === 'Resolved' && (
               <div className="resolution-upload">
@@ -311,6 +372,16 @@ export default function AdminComplaintDetail() {
               </div>
             )}
             <Button fullWidth onClick={handleUpdateStatus} loading={saving}>Update</Button>
+            <Button
+              fullWidth
+              variant="danger"
+              style={{ marginTop: 8 }}
+              onClick={handleEscalate}
+              loading={escalating}
+              disabled={complaint.status === 'Resolved' || complaint.status === 'Rejected'}
+            >
+              Escalate Complaint
+            </Button>
           </Card>
 
           {hasAiAnalysis && (
@@ -344,24 +415,30 @@ export default function AdminComplaintDetail() {
 
           <Card>
             <h4>Timeline</h4>
-            <div className="timeline">
-              <div className="timeline-item">
-                <div className="timeline-dot" />
-                <div className="timeline-content">
-                  <p className="timeline-status">Submitted</p>
-                  <span className="timeline-date">{formatDateTime(complaint.createdAt)}</span>
-                </div>
+            {timeline.length > 0 ? (
+              <div className="timeline">
+                {timeline.map((event, index) => (
+                  <div key={event.id || index} className={`timeline-item ${index === timeline.length - 1 ? 'active' : ''}`}>
+                    <div className="timeline-dot" />
+                    <div className="timeline-content">
+                      <p className="timeline-status">{event.event}</p>
+                      <span className="timeline-date">{formatDateTime(event.createdAt)}</span>
+                      {event.description && <p className="timeline-details">{event.description}</p>}
+                    </div>
+                  </div>
+                ))}
               </div>
-              {complaint.status !== 'Pending' && (
-                <div className={`timeline-item ${complaint.status === 'Resolved' ? 'completed' : complaint.status === 'Rejected' ? 'rejected' : 'active'}`}>
+            ) : (
+              <div className="timeline">
+                <div className="timeline-item">
                   <div className="timeline-dot" />
                   <div className="timeline-content">
-                    <p className="timeline-status">{complaint.status}</p>
-                    <span className="timeline-date">{complaint.updatedAt ? formatDateTime(complaint.updatedAt) : ''}</span>
+                    <p className="timeline-status">Submitted</p>
+                    <span className="timeline-date">{formatDateTime(complaint.createdAt)}</span>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </Card>
         </div>
       </div>

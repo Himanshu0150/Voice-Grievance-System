@@ -21,7 +21,7 @@ const adminService = {
   },
 
   toggleUserStatus: async (id) => {
-    const res = await api.put(`/admin/users/${id}/toggle-status`)
+    const res = await api.put(`/admin/users/${id}/status`)
     return res.data
   },
 
@@ -82,6 +82,50 @@ const adminService = {
 
   updateAiPrediction: async (id, data) => {
     const res = await api.put(`/admin/complaints/${id}/ai-prediction`, data)
+    return res.data
+  },
+
+  escalateComplaint: async (id, data = {}) => {
+    const res = await api.post(`/admin/complaints/${id}/escalate`, data)
+    return res.data
+  },
+
+  getEscalations: async (params = {}) => {
+    const query = new URLSearchParams()
+    Object.entries(params).forEach(([key, value]) => {
+      if (value) query.append(key, value)
+    })
+    const res = await api.get(`/admin/escalations?${query.toString()}`)
+    return res.data
+  },
+
+  getPerformance: async () => {
+    const res = await api.get('/admin/performance')
+    return res.data
+  },
+
+  getDepartmentRanking: async () => {
+    const res = await api.get('/admin/departments/ranking')
+    return res.data
+  },
+
+  getRoles: async () => {
+    const res = await api.get('/admin/roles')
+    return res.data
+  },
+
+  updateUserRole: async (id, data) => {
+    const res = await api.put(`/admin/users/${id}/role`, data)
+    return res.data
+  },
+
+  getOfficers: async () => {
+    const res = await api.get('/admin/officers')
+    return res.data
+  },
+
+  createOfficer: async (data) => {
+    const res = await api.post('/admin/officers', data)
     return res.data
   },
 

@@ -47,6 +47,7 @@ app.use('/api/v1/admin', require('./routes/adminRoutes'));
 app.use('/api/v1/notifications', require('./routes/notificationRoutes'));
 app.use('/api/v1/upload', require('./routes/uploadRoutes'));
 app.use('/api/v1/feedback', require('./routes/feedbackRoutes'));
+app.use('/api/v1/chat', require('./routes/chatRoutes'));
 
 app.use(notFoundHandler);
 app.use(errorHandler);
@@ -84,11 +85,28 @@ async function startServer() {
     server.on('listening', () => {
       logger.info(`Server running on http://localhost:${PORT}`);
       logger.info(`Health check: http://localhost:${PORT}/api/v1/health`);
+      startScheduledJobs();
     });
   } catch (err) {
     logger.error('Failed to start server', err);
     process.exit(1);
   }
+}
+
+const ESCALATION_CHECK_INTERVAL = 6 * 60 * 60 * 1000;
+
+function startScheduledJobs() {
+  const escalationService = require('./services/escalationService');
+  escalationService.runAutoEscalation().catch(err => {
+    logger.error('[SCHEDULER] Initial escalation check failed', err);
+  });
+  const interval = setInterval(() => {
+    escalationService.runAutoEscalation().catch(err => {
+      logger.error('[SCHEDULER] Auto escalation failed', err);
+    });
+  }, ESCALATION_CHECK_INTERVAL);
+  interval.unref();
+  logger.info('[SCHEDULER] Auto-escalation job scheduled (every 6 hours)');
 }
 
 startServer();

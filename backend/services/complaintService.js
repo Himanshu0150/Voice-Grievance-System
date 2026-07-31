@@ -2,9 +2,15 @@ const Complaint = require('../models/Complaint');
 const Notification = require('../models/Notification');
 const { getPaginationParams } = require('../utils/paginationHelper');
 const logger = require('../utils/logger');
+const timelineService = require('./timelineService');
+const impactService = require('./impactService');
+const estimateService = require('./estimateService');
+const escalationService = require('./escalationService');
+const Department = require('../models/Department');
 
 const complaintService = {
   create(data, files = {}) {
+    const toBool = (v) => v === true || v === 'true' || v === '1' || v === 1;
     const complaintData = {
       userId: data.userId,
       category: data.category,
@@ -16,7 +22,11 @@ const complaintService = {
       priority: data.priority || 'Medium',
       latitude: data.latitude || null,
       longitude: data.longitude || null,
-      departmentId: data.departmentId || null
+      departmentId: data.departmentId || null,
+      isAnonymous: toBool(data.isAnonymous) ? 1 : 0,
+      estimatedResolutionDays: data.estimatedResolutionDays || null,
+      impactScore: data.impactScore || null,
+      prioritySource: data.prioritySource || 'ai'
     };
 
     if (files.audio && files.audio[0]) {
@@ -31,12 +41,35 @@ const complaintService = {
       });
     }
 
+    const supporterCount = 0;
+    const impact = impactService.calculate(complaint, supporterCount);
+    const eta = estimateService.estimateComplaint(complaint);
+    Complaint.update(complaint.id, { impactScore: impact.score, priority: impact.priority, estimatedResolutionDays: eta });
+
+    timelineService.add(complaint.id, 'Submitted', `Complaint ${complaint.complaintId} submitted by citizen`, data.userId, 'user');
+
     Notification.create({
       userId: data.userId,
       title: 'Complaint Submitted',
       message: `Your complaint "${data.title}" has been submitted successfully. Reference: ${complaint.complaintId}`,
       type: 'info'
     });
+
+    Notification.create({
+      userId,
+      title: 'Complaint Submitted Successfully',
+      message: `Your complaint has been registered. Reference: ${complaint.complaintId}. Category: ${complaintData.category}. Priority: ${complaintData.priority}.`,
+      type: 'info'
+    });
+
+    if (complaintData.priority === 'Critical' || complaintData.priority === 'High') {
+      Notification.create({
+        userId: null,
+        title: `${complaintData.priority} Priority Complaint`,
+        message: `${complaintData.priority} priority complaint received: "${complaintData.title}" (${complaint.complaintId})`,
+        type: 'warning'
+      });
+    }
 
     return this.formatComplaint(Complaint.findById(complaint.id));
   },
@@ -49,6 +82,27 @@ const complaintService = {
       throw err;
     }
     return this.formatComplaint(complaint);
+  },
+
+  anonymize(complaint) {
+    if (!complaint) return complaint;
+    if (complaint.isAnonymous) {
+      complaint.userName = 'Anonymous Citizen';
+      complaint.fullName = 'Anonymous Citizen';
+      delete complaint.userPhone;
+      delete complaint.userEmail;
+      if (complaint.village) complaint.village = 'Not disclosed';
+      if (complaint.taluka) complaint.taluka = 'Not disclosed';
+    }
+    return complaint;
+  },
+
+  anonymizeForUser(complaint, user) {
+    if (!complaint || !complaint.isAnonymous) return complaint;
+    if (!user) return this.anonymize(complaint);
+    if (user.role === 'admin' || user.role === 'superadmin') return complaint;
+    if (String(complaint.userId) === String(user.id)) return complaint;
+    return this.anonymize(complaint);
   },
 
   getUserComplaints(userId, query) {
@@ -93,6 +147,17 @@ const complaintService = {
     };
   },
 
+  getTimeline(id) {
+    const complaint = Complaint.findById(id) || Complaint.findByComplaintId(id);
+    if (!complaint) {
+      const err = new Error('Complaint not found');
+      err.statusCode = 404;
+      throw err;
+    }
+    timelineService.addStatusEvents(complaint);
+    return timelineService.getByComplaint(complaint.id);
+  },
+
   updateStatus(id, status, remark = null, priority = null, departmentId = undefined) {
     const complaint = Complaint.findById(id);
     if (!complaint) {
@@ -102,12 +167,27 @@ const complaintService = {
     }
     const updated = Complaint.updateStatus(id, status, remark, priority, departmentId);
 
+    const statusNotifications = {
+      'Assigned': { title: 'Complaint Assigned', type: 'info' },
+      'Accepted': { title: 'Complaint Accepted', type: 'info' },
+      'Work Started': { title: 'Work Started', type: 'info' },
+      'Inspection': { title: 'Inspection Scheduled', type: 'info' },
+      'In Progress': { title: 'Status Updated', type: 'info' },
+      'Resolved': { title: 'Complaint Resolved', type: 'success' },
+      'Rejected': { title: 'Complaint Rejected', type: 'warning' }
+    };
+
+    const notif = statusNotifications[status] || { title: 'Status Updated', type: 'info' };
     Notification.create({
       userId: complaint.userId,
-      title: 'Status Updated',
+      title: notif.title,
       message: `Your complaint "${complaint.title}" status updated to ${status}.${remark ? ` Remarks: ${remark}` : ''}`,
-      type: status === 'Resolved' ? 'success' : status === 'Rejected' ? 'warning' : 'info'
+      type: notif.type
     });
+
+    const updatedWithDept = Complaint.findById(id);
+    timelineService.addStatusEvents(updatedWithDept, null, 'admin');
+    if (status === 'Resolved') escalationService.resolveEscalations(id);
 
     return this.formatComplaint(updated);
   },
@@ -125,6 +205,9 @@ const complaintService = {
         Complaint.addResolutionImage(id, `/uploads/images/${file.filename}`);
       });
     }
+    escalationService.resolveEscalations(id);
+    const updatedWithDept = Complaint.findById(id);
+    timelineService.addStatusEvents(updatedWithDept, null, 'admin');
     Notification.create({
       userId: complaint.userId,
       title: 'Complaint Resolved',
@@ -173,7 +256,13 @@ const complaintService = {
       aiKeywords: data.aiKeywords,
       aiProcessed: data.aiProcessed || 0,
       needsManualReview: data.needsManualReview || 0,
-      suggestedAction: data.suggestedAction || null
+      suggestedAction: data.suggestedAction || null,
+      officerRecommendation: data.officerRecommendation || null,
+      estimatedResolutionDays: data.estimatedResolutionDays || null,
+      impactScore: data.impactScore || null,
+      prioritySource: data.prioritySource || 'ai',
+      isAnonymous: data.isAnonymous ? 1 : 0,
+      similarComplaintId: data.similarComplaintId || null
     };
 
     const complaint = Complaint.createVoice(complaintData);
@@ -186,6 +275,16 @@ const complaintService = {
 
     if (files.audio && files.audio[0]) {
       Complaint.updateAudio(complaint.id, `/uploads/audio/${files.audio[0].filename}`);
+    }
+
+    const supporterCount = 0;
+    const impact = impactService.calculate(complaint, supporterCount);
+    const eta = estimateService.estimateComplaint(complaint, complaintData.priority);
+    Complaint.update(complaint.id, { impactScore: impact.score, priority: impact.priority, estimatedResolutionDays: eta });
+
+    timelineService.add(complaint.id, 'Submitted', `Complaint ${complaint.complaintId} submitted by citizen`, data.userId, 'user');
+    if (complaintData.aiProcessed) {
+      timelineService.add(complaint.id, 'AI Processed', `AI classified as ${complaintData.category} (${complaintData.priority}) with ${Math.round((complaintData.aiConfidence || 0) * 100)}% confidence`, null, 'ai');
     }
 
     logger.info(`Voice complaint created: ${complaint.complaintId}, category: ${complaintData.category}, confidence: ${complaintData.aiConfidence}`);
@@ -220,6 +319,22 @@ const complaintService = {
     complaint.detectedCategory = complaint.detectedCategory || null;
     complaint.originalLanguage = complaint.originalLanguage || complaint.speechLanguage || null;
     complaint.suggestedAction = complaint.suggestedAction || null;
+    complaint.officerRecommendation = complaint.officerRecommendation || null;
+    complaint.estimatedResolutionDays = complaint.estimatedResolutionDays != null ? complaint.estimatedResolutionDays : estimateService.estimateForCategory(complaint.category);
+    complaint.impactScore = complaint.impactScore != null ? complaint.impactScore : null;
+    complaint.supporterCount = complaint.supporterCount || 0;
+    complaint.isAnonymous = !!complaint.isAnonymous;
+    complaint.estimatedCompletionDate = complaint.createdAt && complaint.estimatedResolutionDays
+      ? (() => {
+          const d = new Date(complaint.createdAt.replace(' ', 'T'));
+          d.setDate(d.getDate() + complaint.estimatedResolutionDays);
+          return d.toISOString().slice(0, 10);
+        })()
+      : null;
+
+    complaint.ageInDays = complaint.createdAt
+      ? Math.max(0, Math.floor((Date.now() - new Date(complaint.createdAt.replace(' ', 'T')).getTime()) / 86400000))
+      : 0;
 
     // Compute whether translation was actually performed
     if (complaint.aiProcessed) {

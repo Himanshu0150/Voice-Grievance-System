@@ -8,10 +8,20 @@ import ConfirmDialog from '../../components/common/ConfirmDialog'
 import ErrorState from '../../components/common/ErrorState'
 import { formatDate, getInitials } from '../../utils/helpers'
 import { useNotification } from '../../context/NotificationContext'
+import { ROLE_LABELS } from '../../utils/constants'
+import { useAuth } from '../../context/AuthContext'
 import adminService from '../../services/adminService'
+
+const ROLE_SELECT_OPTIONS = [
+  { value: 'user', label: 'Citizen' },
+  { value: 'officer', label: 'Officer' },
+  { value: 'department_admin', label: 'Department Admin' },
+  { value: 'admin', label: 'Admin' }
+]
 
 export default function AdminUsers() {
   const navigate = useNavigate()
+  const { user: currentUser } = useAuth()
   const { success, error: showError } = useNotification()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -21,6 +31,7 @@ export default function AdminUsers() {
   const [totalPages, setTotalPages] = useState(1)
   const [confirmAction, setConfirmAction] = useState(null)
   const [processing, setProcessing] = useState(false)
+  const [roleSavingId, setRoleSavingId] = useState(null)
 
   useEffect(() => {
     loadUsers()
@@ -37,6 +48,19 @@ export default function AdminUsers() {
       setError('Failed to load users')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRoleChange = async (userId, role) => {
+    setRoleSavingId(userId)
+    try {
+      await adminService.updateUserRole(userId, { role })
+      success('User role updated')
+      loadUsers()
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to update role')
+    } finally {
+      setRoleSavingId(null)
     }
   }
 
@@ -87,6 +111,26 @@ export default function AdminUsers() {
     { header: 'Village', accessor: 'village' },
     { header: 'District', accessor: 'district' },
     { header: 'Complaints', accessor: 'complaintCount', render: (row) => row.complaintCount || 0 },
+    {
+      header: 'Role',
+      accessor: 'role',
+      render: (row) => {
+        const canManage = ['superadmin', 'admin'].includes(currentUser?.role)
+        if (row.role === 'superadmin' || !canManage) {
+          return <span className="role-badge">{ROLE_LABELS[row.role] || row.role}</span>
+        }
+        return (
+          <select
+            className="role-select"
+            value={row.role}
+            disabled={roleSavingId === row.id}
+            onChange={(e) => handleRoleChange(row.id, e.target.value)}
+          >
+            {ROLE_SELECT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        )
+      }
+    },
     {
       header: 'Status',
       accessor: 'isActive',

@@ -8,6 +8,7 @@ const VALID_CATEGORIES = [
 ];
 
 const GROQ_MODEL = process.env.AI_GROQ_MODEL || 'llama-3.3-70b-versatile';
+const GROQ_VISION_MODEL = process.env.AI_GROQ_VISION_MODEL || 'llama-3.2-11b-vision-preview';
 const GROQ_ENDPOINT = process.env.AI_GROQ_ENDPOINT || 'https://api.groq.com/openai/v1';
 
 let _connected = false;
@@ -55,7 +56,7 @@ const aiProvider = {
       model: GROQ_MODEL,
       translationEnabled: configured && _connected,
       classificationEnabled: configured && _connected,
-      visionEnabled: false
+      visionEnabled: configured && _connected
     };
   },
 
@@ -107,7 +108,7 @@ const aiProvider = {
 {
   "category": One of ${categoriesStr},
   "department": "Appropriate department name based on category",
-  "priority": "High, Medium, or Low - determine based on urgency and severity",
+  "priority": "Critical, High, Medium, or Low - Critical for life-safety emergencies like gas leaks, fires, collapsed structures, major flooding, or accidents; determine otherwise based on urgency and severity",
   "confidence": 0.0-1.0,
   "summary": "One-line summary of the complaint in English",
   "keywords": ["keyword1", "keyword2"],
@@ -157,8 +158,126 @@ const aiProvider = {
   },
 
   async analyzeImage(imageBase64, mimeType) {
-    logger.warn('[AI VISION] Groq does not support image analysis, returning mock analysis');
-    return this._mockImageAnalysis();
+    const apiKey = groqApiKey();
+    if (!apiKey) {
+      logger.warn('[AI VISION] No API key configured, using mock analysis');
+      return this._mockImageAnalysis();
+    }
+
+    const systemPrompt = `You are an image analyst for a Panchayat grievance system. Analyze the image and detect infrastructure or public issues.
+Return ONLY valid JSON with these fields:
+{
+  "detected": "One of: potholes, broken road, garbage, water leakage, flooding, street light, electric pole, tree fall, drain blockage, animal hazard, construction, fire, or unknown",
+  "confidence": 0.0-1.0,
+  "description": "One line description of what the image shows"
+}`;
+
+    try {
+      const url = `${GROQ_ENDPOINT}/chat/completions`;
+      const body = {
+        model: GROQ_VISION_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: 'Analyze this image and return JSON only.' },
+              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } }
+            ]
+          }
+        ],
+        temperature: 0.2,
+        max_tokens: 512
+      };
+      const headers = { Authorization: `Bearer ${apiKey}` };
+      const res = await httpsRequest(url, 'POST', headers, body);
+      if (res.status !== 200) {
+        logger.error(`[AI VISION] Groq vision call failed: ${res.status} ${JSON.stringify(res.data).substring(0, 300)}`);
+        return this._mockImageAnalysis();
+      }
+      const text = res.data?.choices?.[0]?.message?.content || '{}';
+      const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+      const parsed = JSON.parse(cleaned);
+      const result = {
+        detected: parsed.detected || 'unknown',
+        confidence: typeof parsed.confidence === 'number' ? Math.min(1, Math.max(0, parsed.confidence)) : 0.5,
+        description: parsed.description || ''
+      };
+      logger.info(`[AI VISION] Detected: ${result.detected} (${(result.confidence * 100).toFixed(0)}%)`);
+      return result;
+    } catch (err) {
+      logger.error(`[AI VISION] Vision analysis failed: ${err.message}`);
+      return this._mockImageAnalysis();
+    }
+  },
+
+  async chat(systemPrompt, userPrompt, options = {}) {
+    const apiKey = groqApiKey();
+    if (!apiKey) {
+      logger.warn('[AI CHAT] No API key configured');
+      const err = new Error('AI provider not configured');
+      err.statusCode = 503;
+      throw err;
+    }
+    const url = `${GROQ_ENDPOINT}/chat/completions`;
+    const body = {
+      model: GROQ_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: options.temperature || 0.2,
+      max_tokens: options.maxTokens || 1024
+    };
+    const headers = { Authorization: `Bearer ${groqApiKey()}` };
+    const res = await httpsRequest(url, 'POST', headers, body);
+    if (res.status !== 200) {
+      throw new Error(`Groq API error (${res.status}): ${res.data?.error?.message || JSON.stringify(res.data).substring(0, 200)}`);
+    }
+    return res.data?.choices?.[0]?.message?.content?.trim() || '';
+  },
+
+  async generateRecommendation(englishText, category, keywords = [], imageAnalysisText = '') {
+    const systemPrompt = `You are an officer recommendation engine for a Panchayat grievance system.
+Based on the complaint details, generate:
+1. "summary": A 2-line summary of the complaint
+2. "keywords": Top 5 keywords
+3. "suggestedAction": A brief suggested action for the department
+4. "officerRecommendation": A specific recommendation for the officer handling this complaint (what to check, what to do, safety notes if any)
+Return ONLY valid JSON.`;
+
+    const userPrompt = `Complaint text: ${englishText}
+Category: ${category}
+Keywords: ${JSON.stringify(keywords || [])}
+${imageAnalysisText ? `Image analysis: ${imageAnalysisText}` : ''}
+Respond with JSON only.`;
+
+    if (!this.isConfigured()) {
+      return {
+        summary: englishText ? englishText.substring(0, 200) : 'Complaint received',
+        keywords: (keywords || []).slice(0, 5),
+        suggestedAction: `Assign to ${category} department for review and resolution.`,
+        officerRecommendation: 'Verify the complaint details at the location, document the findings, and take appropriate action within the estimated resolution time.'
+      };
+    }
+
+    try {
+      const result = await this._callGroqClassify(systemPrompt, userPrompt);
+      return {
+        summary: result.summary || englishText.substring(0, 200),
+        keywords: Array.isArray(result.keywords) ? result.keywords.slice(0, 5) : (keywords || []).slice(0, 5),
+        suggestedAction: result.suggestedAction || `Assign to ${category} department.`,
+        officerRecommendation: result.officerRecommendation || 'Verify the complaint details at the location and document findings.'
+      };
+    } catch (err) {
+      logger.warn(`[AI RECOMMENDATION] Failed: ${err.message}`);
+      return {
+        summary: englishText ? englishText.substring(0, 200) : 'Complaint received',
+        keywords: (keywords || []).slice(0, 5),
+        suggestedAction: `Assign to ${category} department for review and resolution.`,
+        officerRecommendation: 'Verify the complaint details at the location, document the findings, and take appropriate action within the estimated resolution time.'
+      };
+    }
   },
 
   async _callGroqClassify(systemPrompt, userPrompt) {
@@ -229,6 +348,7 @@ const aiProvider = {
     else if (lower.includes('government') || lower.includes('office') || lower.includes('scheme')) { category = 'Government Office'; department = 'Administrative Department'; }
     if (lower.includes('urgent') || lower.includes('immediate') || lower.includes('danger') || lower.includes('emergency') || lower.includes('overflow') || lower.includes('accident')) { priority = 'High'; }
     else if (lower.includes('minor') || lower.includes('small') || lower.includes('suggestion')) { priority = 'Low'; }
+    if (lower.includes('gas leak') || lower.includes('fire') || lower.includes('collapsed') || lower.includes('collapse') || lower.includes('burst') || lower.includes('major flood') || lower.includes('electrocution') || lower.includes('open wire')) { priority = 'Critical'; }
     const words = (text || '').split(/\s+/).filter(w => w.length > 3).slice(0, 8);
     keywords.push(...words.map(w => w.toLowerCase().replace(/[^a-z0-9]/g, '')).filter(Boolean));
     return {

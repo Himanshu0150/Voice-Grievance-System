@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import Button from '../../components/common/Button'
 import Card from '../../components/common/Card'
 import ImageUpload from '../../components/upload/ImageUpload'
+import StatusChip from '../../components/common/StatusChip'
 import { useNotification } from '../../context/NotificationContext'
 import { SPEECH_LANGUAGES } from '../../utils/constants'
 import complaintService from '../../services/complaintService'
+import { formatDate, truncateText } from '../../utils/helpers'
 
 const LANGUAGES = SPEECH_LANGUAGES
 
@@ -32,9 +34,15 @@ export default function NewComplaint() {
   const [hasRecording, setHasRecording] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [aiResult, setAiResult] = useState(null)
+  const [isAnonymous, setIsAnonymous] = useState(false)
+  const [similarComplaints, setSimilarComplaints] = useState([])
+  const [checkingSimilarity, setCheckingSimilarity] = useState(false)
+  const [joined, setJoined] = useState(false)
+  const [joinedId, setJoinedId] = useState(null)
 
   const recognitionRef = useRef(null)
   const timerRef = useRef(null)
+  const similarityTimeoutRef = useRef(null)
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
 
@@ -50,6 +58,45 @@ export default function NewComplaint() {
       )
     }
   }, [])
+
+  useEffect(() => {
+    if (similarityTimeoutRef.current) {
+      clearTimeout(similarityTimeoutRef.current)
+    }
+    if (!transcript.trim() || transcript.trim().length < 25) {
+      setSimilarComplaints([])
+      return
+    }
+    setCheckingSimilarity(true)
+    similarityTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await complaintService.checkSimilarity(transcript, language)
+        setSimilarComplaints(res?.similar || [])
+      } catch {
+        setSimilarComplaints([])
+      } finally {
+        setCheckingSimilarity(false)
+      }
+    }, 700)
+    return () => {
+      if (similarityTimeoutRef.current) clearTimeout(similarityTimeoutRef.current)
+    }
+  }, [transcript, language])
+
+  const handleJoin = async (complaint) => {
+    setLoading(true)
+    try {
+      await complaintService.joinComplaint(complaint.id)
+      await complaintService.supportComplaint(complaint.id)
+      setJoined(true)
+      setJoinedId(complaint.complaintId)
+      success(`You have joined and supported complaint ${complaint.complaintId}`)
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to join complaint')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const stopTimer = useCallback(() => {
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null }
@@ -125,6 +172,20 @@ export default function NewComplaint() {
     setInterimText('')
     setHasRecording(false)
     setAiResult(null)
+    setSimilarComplaints([])
+  }
+
+  const handleReset = () => {
+    setShowConfirm(false)
+    setStep('language')
+    setTranscript('')
+    setHasRecording(false)
+    setImages([])
+    setAiResult(null)
+    setIsAnonymous(false)
+    setSimilarComplaints([])
+    setJoined(false)
+    setJoinedId(null)
   }
 
   const formatTime = (s) => {
@@ -144,6 +205,7 @@ export default function NewComplaint() {
       formData.append('voiceTranscript', transcript)
       formData.append('speechLanguage', language)
       formData.append('address', address || '')
+      formData.append('isAnonymous', isAnonymous ? 'true' : 'false')
 
       if (location) {
         formData.append('latitude', location.latitude)
@@ -232,7 +294,7 @@ export default function NewComplaint() {
         </Card>
         <div className="voice-submit-actions">
           <Button variant="secondary" onClick={() => navigate('/complaints')}>View My Complaints</Button>
-          <Button onClick={() => { setShowConfirm(false); setStep('language'); setTranscript(''); setHasRecording(false); setImages([]); setAiResult(null) }}>
+          <Button onClick={handleReset}>
             Submit Another
           </Button>
         </div>
@@ -344,7 +406,70 @@ export default function NewComplaint() {
             </p>
           )}
         </div>
+        <div className="voice-anonymous-toggle">
+          <label className="anonymous-checkbox">
+            <input
+              type="checkbox"
+              checked={isAnonymous}
+              onChange={(e) => setIsAnonymous(e.target.checked)}
+            />
+            <span>
+              <strong>Submit Anonymously</strong>
+              <small>Your name and contact details will be hidden from officers. You can still track this complaint.</small>
+            </span>
+          </label>
+        </div>
       </Card>
+
+      {similarComplaints.length > 0 && (
+        <Card className="similar-complaints-card">
+          <div className="similar-complaints-header">
+            <span className="similar-complaints-icon">&#9888;</span>
+            <div>
+              <h3>Similar Complaint Already Exists</h3>
+              <p>
+                {joined
+                  ? `You have joined complaint ${joinedId}. Your support increases its priority, making resolution faster.`
+                  : 'We found a complaint matching what you described. Join it instead of filing a duplicate - your support increases its priority and speeds up resolution.'}
+              </p>
+            </div>
+          </div>
+          <div className="similar-complaints-list">
+            {similarComplaints.map(c => (
+              <div key={c.id} className="similar-complaint-item">
+                <div className="similar-complaint-info">
+                  <div className="similar-complaint-title">
+                    <strong>{c.complaintId}</strong>
+                    <StatusChip status={c.status} />
+                  </div>
+                  <p>{truncateText(c.title || c.description, 120)}</p>
+                  <small>
+                    {c.category} &middot; {formatDate(c.createdAt)} &middot; Similarity {(c.score * 100).toFixed(0)}%
+                    {c.supporterCount > 0 && ` &middot; ${c.supporterCount} supporter${c.supporterCount > 1 ? 's' : ''}`}
+                  </small>
+                </div>
+                {!joined ? (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleJoin(c)}
+                    loading={loading}
+                  >
+                    Join & Support
+                  </Button>
+                ) : (
+                  <span className="joined-badge">Joined &#10003;</span>
+                )}
+              </div>
+            ))}
+          </div>
+          {!joined && (
+            <p className="similar-complaints-note">
+              You can still submit as a separate complaint if this is a different issue.
+            </p>
+          )}
+        </Card>
+      )}
 
       <div className="voice-submit-actions">
         <Button variant="secondary" onClick={() => { setStep('language'); deleteRecording() }}>
@@ -353,7 +478,7 @@ export default function NewComplaint() {
         <Button
           onClick={handleSubmit}
           loading={loading}
-          disabled={!transcript.trim()}
+          disabled={!transcript.trim() || checkingSimilarity}
         >
           Submit Complaint
         </Button>

@@ -1,18 +1,43 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import Card from '../../components/common/Card'
 import StatusChip from '../../components/common/StatusChip'
 import ImageViewer from '../../components/common/ImageViewer'
 import Loader from '../../components/common/Loader'
 import ErrorState from '../../components/common/ErrorState'
+import Button from '../../components/common/Button'
 import { formatDateTime } from '../../utils/helpers'
+import { PRIORITY_COLORS } from '../../utils/constants'
+import { useAuth } from '../../context/AuthContext'
+import { useNotification } from '../../context/NotificationContext'
 import complaintService from '../../services/complaintService'
+
+function getImpactLevel(score) {
+  if (!score && score !== 0) return { label: 'Not calculated', color: '#6c757d' }
+  if (score >= 80) return { label: 'Very High Impact', color: '#DC3545' }
+  if (score >= 50) return { label: 'High Impact', color: '#FD7E14' }
+  if (score >= 25) return { label: 'Moderate Impact', color: '#FFC107' }
+  return { label: 'Low Impact', color: '#198754' }
+}
 
 export default function UserComplaintDetails() {
   const { id } = useParams()
+  const { user } = useAuth()
+  const { success, error: showError } = useNotification()
   const [complaint, setComplaint] = useState(null)
+  const [timeline, setTimeline] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [supporting, setSupporting] = useState(false)
+
+  const loadTimeline = useCallback(async (complaintId) => {
+    try {
+      const events = await complaintService.getTimeline(complaintId)
+      setTimeline(events || [])
+    } catch {
+      setTimeline([])
+    }
+  }, [])
 
   useEffect(() => {
     loadComplaint()
@@ -24,10 +49,24 @@ export default function UserComplaintDetails() {
     try {
       const data = await complaintService.getById(id)
       setComplaint(data)
+      if (data.id) loadTimeline(data.id)
     } catch (err) {
       setError('Failed to load complaint details')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSupport = async () => {
+    setSupporting(true)
+    try {
+      const res = await complaintService.supportComplaint(complaint.id)
+      success(`You are now supporting this complaint. Total supporters: ${res.supporterCount}`)
+      loadComplaint()
+    } catch (err) {
+      showError(err.response?.data?.message || 'Failed to support complaint')
+    } finally {
+      setSupporting(false)
     }
   }
 
@@ -38,6 +77,9 @@ export default function UserComplaintDetails() {
   const mapLink = complaint.latitude && complaint.longitude
     ? `https://www.google.com/maps?q=${complaint.latitude},${complaint.longitude}`
     : null
+
+  const isOwner = complaint.userId === user?.id
+  const impact = getImpactLevel(complaint.impactScore)
 
   return (
     <div className="page-container">
@@ -58,7 +100,11 @@ export default function UserComplaintDetails() {
               <span>ID: <strong>#{complaint.complaintId || complaint.id}</strong></span>
               <span>Category: <strong>{complaint.category}</strong></span>
               {complaint.departmentName && <span>Department: <strong>{complaint.departmentName}</strong></span>}
-              {complaint.priority && <span>Priority: <strong>{complaint.priority}</strong></span>}
+              {complaint.priority && (
+                <span>
+                  Priority: <strong style={{ color: PRIORITY_COLORS[complaint.priority] || undefined }}>{complaint.priority}</strong>
+                </span>
+              )}
               <span>Submitted: <strong>{formatDateTime(complaint.createdAt)}</strong></span>
             </div>
             <div className="detail-description">
@@ -66,6 +112,55 @@ export default function UserComplaintDetails() {
               <p>{complaint.description}</p>
             </div>
           </Card>
+
+          <Card className="impact-card">
+            <h4>Impact Score</h4>
+            <div className="impact-score-row">
+              <div className="impact-score-bar">
+                <div
+                  className="impact-score-fill"
+                  style={{
+                    width: `${Math.min(complaint.impactScore || 0, 100)}%`,
+                    backgroundColor: impact.color
+                  }}
+                />
+              </div>
+              <span className="impact-score-value" style={{ color: impact.color }}>
+                {complaint.impactScore || 0}/100
+              </span>
+            </div>
+            <p className="impact-score-label" style={{ color: impact.color }}>{impact.label}</p>
+            <div className="impact-info-grid">
+              {typeof complaint.estimatedResolutionDays === 'number' && (
+                <div className="impact-info-item">
+                  <label>Estimated Resolution</label>
+                  <span>{complaint.estimatedResolutionDays} day{complaint.estimatedResolutionDays !== 1 ? 's' : ''}</span>
+                </div>
+              )}
+              {complaint.estimatedCompletionDate && (
+                <div className="impact-info-item">
+                  <label>Expected Completion</label>
+                  <span>{formatDateTime(complaint.estimatedCompletionDate)}</span>
+                </div>
+              )}
+              <div className="impact-info-item">
+                <label>Supporters</label>
+                <span>{complaint.supporterCount || 0} citizen{complaint.supporterCount === 1 ? '' : 's'}</span>
+              </div>
+              <div className="impact-info-item">
+                <label>Reported</label>
+                <span>{complaint.ageInDays !== undefined && complaint.ageInDays !== null ? `${complaint.ageInDays} day${complaint.ageInDays === 1 ? '' : 's'} ago` : formatDateTime(complaint.createdAt)}</span>
+              </div>
+            </div>
+          </Card>
+
+          {!isOwner && (
+            <Card>
+              <h4>Support This Complaint</h4>
+              <p>Supporting this complaint increases its impact score and priority, helping it get resolved faster.</p>
+              <Button onClick={handleSupport} loading={supporting}>Support This Complaint</Button>
+            </Card>
+          )}
 
           {complaint.aiSummary && (
             <Card className="ai-analysis-card">
@@ -172,32 +267,29 @@ export default function UserComplaintDetails() {
         <div className="detail-sidebar">
           <Card>
             <h4>Timeline</h4>
-            <div className="timeline">
-              <div className="timeline-item">
-                <div className="timeline-dot" />
-                <div className="timeline-content">
-                  <p className="timeline-status">Submitted</p>
-                  <span className="timeline-date">{formatDateTime(complaint.createdAt)}</span>
-                </div>
-              </div>
-              {complaint.status === 'In Progress' && (
-                <div className="timeline-item active">
-                  <div className="timeline-dot" />
-                  <div className="timeline-content">
-                    <p className="timeline-status">In Progress</p>
-                    <span className="timeline-date">Being reviewed</span>
-                  </div>
-                </div>
-              )}
-              {complaint.status === 'Resolved' && (
-                <>
-                  <div className="timeline-item active">
+            {timeline.length > 0 ? (
+              <div className="timeline">
+                {timeline.map((event, index) => (
+                  <div key={event.id || index} className={`timeline-item ${index === timeline.length - 1 ? 'active' : ''}`}>
                     <div className="timeline-dot" />
                     <div className="timeline-content">
-                      <p className="timeline-status">In Progress</p>
-                      <span className="timeline-date">Reviewed</span>
+                      <p className="timeline-status">{event.event}</p>
+                      <span className="timeline-date">{formatDateTime(event.createdAt)}</span>
+                      {event.description && <p className="timeline-details">{event.description}</p>}
                     </div>
                   </div>
+                ))}
+              </div>
+            ) : (
+              <div className="timeline">
+                <div className="timeline-item">
+                  <div className="timeline-dot" />
+                  <div className="timeline-content">
+                    <p className="timeline-status">Submitted</p>
+                    <span className="timeline-date">{formatDateTime(complaint.createdAt)}</span>
+                  </div>
+                </div>
+                {complaint.status === 'Resolved' && (
                   <div className="timeline-item completed">
                     <div className="timeline-dot" />
                     <div className="timeline-content">
@@ -205,18 +297,14 @@ export default function UserComplaintDetails() {
                       <span className="timeline-date">{complaint.resolvedAt ? formatDateTime(complaint.resolvedAt) : 'Recently'}</span>
                     </div>
                   </div>
-                </>
-              )}
-              {complaint.status === 'Rejected' && (
-                <div className="timeline-item rejected">
-                  <div className="timeline-dot" />
-                  <div className="timeline-content">
-                    <p className="timeline-status">Rejected</p>
-                    <span className="timeline-date">{complaint.resolvedAt ? formatDateTime(complaint.resolvedAt) : ''}</span>
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
+            {complaint.status === 'In Progress' && (
+              <div className="timeline-future">
+                <span>Currently in progress</span>
+              </div>
+            )}
           </Card>
 
           {complaint.resolutionRemark && (

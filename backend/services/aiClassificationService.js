@@ -25,6 +25,21 @@ const CATEGORY_DEPARTMENT_MAP = {
   'Others': 'General Department'
 };
 
+const DEPARTMENT_CATEGORY_MAP = {
+  'Public Works Department': 'Road',
+  'Water Department': 'Water Supply',
+  'Sanitation Department': 'Garbage',
+  'Electrical Department': 'Electricity',
+  'Health Department': 'Health',
+  'Education Department': 'Education',
+  'Agriculture Department': 'Agriculture',
+  'Municipal Department': 'Public Property',
+  'Administrative Department': 'Government Office',
+  'Traffic Department': 'Traffic',
+  'Environment Department': 'Environment',
+  'General Department': 'Others'
+};
+
 function normalizeResult(raw, imageText = '') {
   const result = {
     category: 'Others',
@@ -44,11 +59,11 @@ function normalizeResult(raw, imageText = '') {
   }
 
   result.department = CATEGORY_DEPARTMENT_MAP[result.category] || 'General Department';
-  if (raw.department && raw.department !== 'General Department') {
+  if (result.category === 'Others' && raw.department && raw.department !== 'General Department') {
     result.department = raw.department;
   }
 
-  const validPriorities = ['High', 'Medium', 'Low'];
+  const validPriorities = ['Critical', 'High', 'Medium', 'Low'];
   if (validPriorities.includes(raw.priority)) {
     result.priority = raw.priority;
   }
@@ -108,6 +123,14 @@ const aiClassificationService = {
 
   getValidCategories() {
     return [...VALID_CATEGORIES];
+  },
+
+  getCategoryDepartmentMap() {
+    return { ...CATEGORY_DEPARTMENT_MAP };
+  },
+
+  getDepartmentCategoryMap() {
+    return { ...DEPARTMENT_CATEGORY_MAP };
   }
 };
 

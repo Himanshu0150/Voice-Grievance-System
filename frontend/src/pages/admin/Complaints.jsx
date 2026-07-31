@@ -13,6 +13,10 @@ import adminService from '../../services/adminService'
 const statusOptions = [
   { value: '', label: 'All Status' },
   { value: 'Pending', label: 'Pending' },
+  { value: 'Assigned', label: 'Assigned' },
+  { value: 'Accepted', label: 'Accepted' },
+  { value: 'Work Started', label: 'Work Started' },
+  { value: 'Inspection', label: 'Inspection' },
   { value: 'In Progress', label: 'In Progress' },
   { value: 'Resolved', label: 'Resolved' },
   { value: 'Rejected', label: 'Rejected' }
@@ -90,7 +94,7 @@ export default function AdminComplaints() {
   const columns = [
     { header: 'ID', accessor: 'complaintId', width: '140px', render: (row) => row.complaintId || `#${row.id}` },
     { header: 'Title', accessor: 'title', render: (row) => row.title?.substring(0, 40) },
-    { header: 'User', accessor: 'userName' },
+    { header: 'User', accessor: 'userName', render: (row) => row.userName || 'Anonymous' },
     { header: 'Category', accessor: 'category' },
     { header: 'Department', accessor: 'departmentName', render: (row) => row.departmentName || '-' },
     { header: 'Village', accessor: 'village' },
@@ -99,6 +103,7 @@ export default function AdminComplaints() {
       accessor: 'priority',
       render: (row) => <span className={`priority-badge priority-${row.priority?.toLowerCase()}`}>{row.priority || 'Medium'}</span>
     },
+    { header: 'Supporters', accessor: 'supporterCount', render: (row) => row.supporterCount > 0 ? `\u2605 ${row.supporterCount}` : '-' },
     { header: 'Status', accessor: 'status', render: (row) => <StatusChip status={row.status} /> },
     { header: 'Date', accessor: 'createdAt', render: (row) => formatDate(row.createdAt) }
   ]

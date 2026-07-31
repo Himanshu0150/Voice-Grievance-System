@@ -101,7 +101,10 @@ export function AuthProvider({ children }) {
     register,
     logout,
     isAuthenticated: !!token,
-    isAdmin: user?.role === 'admin',
+    isAdmin: user ? ['admin', 'superadmin', 'department_admin'].includes(user.role) : false,
+    isSuperAdmin: user?.role === 'superadmin',
+    isOfficer: user?.role === 'officer',
+    isStaff: user ? ['admin', 'superadmin', 'department_admin', 'officer'].includes(user.role) : false,
     isUser: user?.role === 'user'
   }
 

@@ -14,6 +14,10 @@ import complaintService from '../../services/complaintService'
 const statusOptions = [
   { value: '', label: 'All Status' },
   { value: 'Pending', label: 'Pending' },
+  { value: 'Assigned', label: 'Assigned' },
+  { value: 'Accepted', label: 'Accepted' },
+  { value: 'Work Started', label: 'Work Started' },
+  { value: 'Inspection', label: 'Inspection' },
   { value: 'In Progress', label: 'In Progress' },
   { value: 'Resolved', label: 'Resolved' },
   { value: 'Rejected', label: 'Rejected' }
@@ -87,6 +91,11 @@ export default function ComplaintHistory() {
       header: 'Priority',
       accessor: 'priority',
       render: (row) => <span className={`priority-badge priority-${row.priority?.toLowerCase()}`}>{row.priority || 'Medium'}</span>
+    },
+    {
+      header: 'Supporters',
+      accessor: 'supporterCount',
+      render: (row) => row.supporterCount > 0 ? `\u2605 ${row.supporterCount}` : '-'
     },
     {
       header: 'Date',

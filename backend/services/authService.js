@@ -197,7 +197,13 @@ const authService = {
 
   generateToken(user) {
     return jwt.sign(
-      { id: user.id, email: user.email || null, phone: user.phone, role: user.role },
+      {
+        id: user.id,
+        email: user.email || null,
+        phone: user.phone,
+        role: user.role,
+        departmentId: user.departmentId || null
+      },
       jwtConfig.secret,
       { expiresIn: jwtConfig.expiresIn }
     );
@@ -233,7 +239,8 @@ const authService = {
       err.statusCode = 401;
       throw err;
     }
-    if (user.role !== 'admin') {
+    const adminRoles = ['admin', 'superadmin', 'department_admin'];
+    if (!adminRoles.includes(user.role)) {
       const err = new Error('Access denied. Admin access required.');
       err.statusCode = 403;
       throw err;

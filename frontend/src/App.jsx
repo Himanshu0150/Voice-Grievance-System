@@ -25,6 +25,8 @@ import AdminDepartments from './pages/admin/Departments'
 import AdminAnalytics from './pages/admin/Analytics'
 import AdminReports from './pages/admin/Reports'
 import AdminSettings from './pages/admin/Settings'
+import AdminHeatmap from './pages/admin/Heatmap'
+import ChatWidget from './components/chat/ChatWidget'
 
 export default function App() {
   return (
@@ -52,6 +54,7 @@ export default function App() {
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/complaints" element={<AdminComplaints />} />
           <Route path="/admin/complaints/:id" element={<AdminComplaintDetail />} />
+          <Route path="/admin/heatmap" element={<AdminHeatmap />} />
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/departments" element={<AdminDepartments />} />
           <Route path="/admin/analytics" element={<AdminAnalytics />} />

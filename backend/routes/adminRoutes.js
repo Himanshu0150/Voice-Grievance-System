@@ -1,18 +1,22 @@
 const router = require('express').Router();
 const adminController = require('../controllers/adminController');
-const { authenticate, authorizeAdmin } = require('../middleware/auth');
+const { authenticate, authorizeAdmin, authorizeStaff } = require('../middleware/auth');
 const { statusUpdateValidation, departmentValidation } = require('../middleware/validation');
 const { uploadImages } = require('../config/multer');
 const { handleUpload } = require('../middleware/upload');
 
-router.use(authenticate, authorizeAdmin);
+router.use(authenticate, authorizeStaff);
 
 router.get('/dashboard', adminController.getDashboard);
 
 router.get('/users', adminController.getUsers);
 router.get('/users/:id', adminController.getUserById);
 router.put('/users/:id/status', adminController.toggleUserStatus);
+router.put('/users/:id/role', adminController.updateRole);
 router.delete('/users/:id', adminController.deleteUser);
+
+router.get('/officers', adminController.getOfficers);
+router.post('/officers', adminController.createOfficer);
 
 router.get('/complaints', adminController.getComplaints);
 router.get('/complaints/:id', adminController.getComplaintById);
@@ -23,6 +27,13 @@ router.put('/complaints/:id/remarks', adminController.addRemarks);
 router.post('/complaints/:id/resolution-image', uploadImages.single('resolutionImage'), adminController.uploadResolutionImage);
 router.put('/complaints/:id/resolve', handleUpload, adminController.resolveComplaint);
 router.put('/complaints/:id/ai-prediction', adminController.updateAiPrediction);
+router.post('/complaints/:id/escalate', adminController.escalateComplaint);
+
+router.get('/escalations', adminController.getEscalations);
+router.get('/performance', adminController.getPerformance);
+router.get('/departments/ranking', adminController.getDepartmentRanking);
+
+router.get('/roles', adminController.getRoles);
 
 router.get('/departments', adminController.getDepartments);
 router.post('/departments', departmentValidation, adminController.createDepartment);

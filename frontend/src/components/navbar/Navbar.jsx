@@ -1,13 +1,32 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { getInitials } from '../../utils/helpers'
+import notificationService from '../../services/notificationService'
 
 export default function Navbar() {
   const { user, isAuthenticated, isAdmin, logout } = useAuth()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await notificationService.getUnreadCount()
+        if (!cancelled) setUnreadCount(res?.count || 0)
+      } catch {}
+    }
+    load()
+    const timer = setInterval(load, 60000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [isAuthenticated])
 
   const handleLogout = () => {
     logout()
@@ -50,7 +69,10 @@ export default function Navbar() {
                   <Link to="/dashboard" className="nav-link" onClick={toggleMobile}>Dashboard</Link>
                   <Link to="/new-complaint" className="nav-link" onClick={toggleMobile}>New Complaint</Link>
                   <Link to="/complaints" className="nav-link" onClick={toggleMobile}>My Complaints</Link>
-                  <Link to="/notifications" className="nav-link" onClick={toggleMobile}>Notifications</Link>
+                  <Link to="/notifications" className="nav-link nav-link-notif" onClick={toggleMobile}>
+                    Notifications
+                    {unreadCount > 0 && <span className="nav-notif-badge">{unreadCount}</span>}
+                  </Link>
                 </>
               )}
               {isAdmin && (

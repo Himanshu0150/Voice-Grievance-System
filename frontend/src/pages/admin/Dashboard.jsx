@@ -6,9 +6,11 @@ import BarChart from '../../components/charts/BarChart'
 import Loader from '../../components/common/Loader'
 import ErrorState from '../../components/common/ErrorState'
 import adminService from '../../services/adminService'
+import { formatDate } from '../../utils/helpers'
 
 const quickActions = [
   { to: '/admin/complaints', label: 'All Complaints', color: '#0B5ED7', icon: 'C' },
+  { to: '/admin/heatmap', label: 'Heatmap', color: '#20C997', icon: 'H' },
   { to: '/admin/users', label: 'Manage Users', color: '#198754', icon: 'U' },
   { to: '/admin/analytics', label: 'Analytics', color: '#6F42C1', icon: 'A' },
   { to: '/admin/reports', label: 'Reports', color: '#FD7E14', icon: 'R' },
@@ -20,6 +22,8 @@ export default function AdminDashboard() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [escalations, setEscalations] = useState([])
+  const [performance, setPerformance] = useState([])
 
   useEffect(() => {
     loadDashboard()
@@ -29,8 +33,14 @@ export default function AdminDashboard() {
     setLoading(true)
     setError(null)
     try {
-      const dashboardData = await adminService.getDashboardStats()
+      const [dashboardData, escalationData, performanceData] = await Promise.all([
+        adminService.getDashboardStats(),
+        adminService.getEscalations({ limit: 5 }),
+        adminService.getPerformance()
+      ])
       setData(dashboardData)
+      setEscalations(escalationData.escalations || escalationData.data || escalationData || [])
+      setPerformance(performanceData.performance || performanceData.data || performanceData || [])
     } catch {
       setError('Failed to load dashboard')
     } finally {
@@ -65,7 +75,10 @@ export default function AdminDashboard() {
         <StatisticCard title="Pending" value={data?.pending || 0} color="#FFC107" icon={<span>P</span>} />
         <StatisticCard title="In Progress" value={data?.inProgress || 0} color="#0B5ED7" icon={<span>I</span>} />
         <StatisticCard title="Resolved" value={data?.resolved || 0} color="#198754" icon={<span>R</span>} />
-        <StatisticCard title="High Priority" value={highPriorityCount} color="#DC3545" icon={<span>!</span>} />
+        <StatisticCard title="Critical" value={data?.critical || 0} color="#DC3545" icon={<span>!</span>} />
+        <StatisticCard title="High Priority" value={highPriorityCount} color="#FD7E14" icon={<span>H</span>} />
+        <StatisticCard title="Open Escalations" value={data?.openEscalations || 0} color="#6F42C1" icon={<span>E</span>} />
+        <StatisticCard title="Total Supporters" value={data?.totalSupporters || 0} color="#20C997" icon={<span>S</span>} />
         <StatisticCard title="AI Pending Review" value={aiReviewCount} color="#FD7E14" icon={<span>AI</span>} />
         <StatisticCard title="Avg AI Confidence" value={`${avgConfidence}%`} color="#0DCAF0" icon={<span>%</span>} />
       </div>
@@ -85,6 +98,43 @@ export default function AdminDashboard() {
           <BarChart title="Monthly Complaints" data={data?.monthlyStats || []} height={250} />
         </div>
       </div>
+
+      {escalations.length > 0 && (
+        <div className="section-card">
+          <div className="section-card-header">
+            <h3>Open Escalations</h3>
+            <button className="view-all" onClick={() => navigate('/admin/complaints')}>View All</button>
+          </div>
+          <div className="escalation-mini-list">
+            {escalations.map(e => (
+              <div key={e.id} className="escalation-mini-item" onClick={() => navigate(`/admin/complaints/${e.complaintId}`)}>
+                <span className="escalation-level-badge">L{e.level}</span>
+                <div>
+                  <strong>{e.complaintRef} - {e.complaintTitle}</strong>
+                  <small>Escalated to {e.escalatedToRole} &middot; {formatDate(e.escalatedAt)}</small>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {performance.length > 0 && (
+        <div className="section-card">
+          <div className="section-card-header">
+            <h3>Officer Performance</h3>
+            <button className="view-all" onClick={() => navigate('/admin/analytics')}>View All</button>
+          </div>
+          <div className="performance-mini-grid">
+            {performance.slice(0, 5).map(o => (
+              <div key={o.officerId} className="performance-mini-item">
+                <strong>{o.officerName}</strong>
+                <small>{o.solvedCount || 0} solved &middot; {o.avgResolutionDays ? `${o.avgResolutionDays.toFixed(1)}d avg` : '-'}</small>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="section-card">
         <div className="section-card-header">

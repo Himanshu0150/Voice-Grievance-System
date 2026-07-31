@@ -2,7 +2,13 @@ const complaintService = require('../services/complaintService');
 const voiceComplaintService = require('../services/voiceComplaintService');
 const speechService = require('../services/speechService');
 const locationService = require('../services/locationService');
+const similarityService = require('../services/similarityService');
+const supportService = require('../services/supportService');
+const translationService = require('../services/translationService');
+const roleService = require('../services/roleService');
+const db = require('../config/database');
 const response = require('../utils/responseHelper');
+const logger = require('../utils/logger');
 
 const complaintController = {
   create(req, res, next) {
@@ -51,12 +57,104 @@ const complaintController = {
     }
   },
 
+  async checkSimilarity(req, res, next) {
+    try {
+      const { text, speechLanguage } = req.body;
+      if (!text || !text.trim()) {
+        return response.badRequest(res, 'Complaint text is required');
+      }
+
+      let englishText = text;
+      let translationAvailable = false;
+      const lang = (speechLanguage || 'en-IN').toLowerCase();
+      if (lang !== 'en' && lang !== 'en-in') {
+        const result = await translationService.translateToEnglish(text, speechLanguage || 'hi-IN');
+        englishText = result.englishTranslation || text;
+        translationAvailable = result.translationAvailable;
+      } else {
+        translationAvailable = true;
+      }
+
+      const result = await similarityService.findSimilar(englishText);
+      return response.success(res, {
+        ...result,
+        translatedText: englishText,
+        translationAvailable
+      }, 'Similarity check complete');
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async toggleSupport(req, res, next) {
+    try {
+      const complaint = complaintService.getById(req.params.id);
+      if (complaint.userId === req.user.id) {
+        return response.badRequest(res, 'You cannot support your own complaint');
+      }
+      const result = await supportService.toggle(req.params.id, req.user.id);
+      return response.success(res, result, result.supported ? 'Complaint supported' : 'Support removed');
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  async joinComplaint(req, res, next) {
+    try {
+      const complaint = complaintService.getById(req.params.id);
+      if (complaint.userId === req.user.id) {
+        return response.badRequest(res, 'You cannot join your own complaint');
+      }
+      const result = await supportService.join(req.params.id, req.user.id);
+      return response.success(res, result, 'You joined this complaint');
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  getTimeline(req, res, next) {
+    try {
+      const complaint = complaintService.getById(req.params.id);
+      if (!roleService.isStaffRole(req.user.role) && complaint.userId !== req.user.id) {
+        return response.forbidden(res, 'Not authorized to view this complaint');
+      }
+      const timeline = complaintService.getTimeline(complaint.id);
+      return response.success(res, timeline);
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  getHeatmap(req, res, next) {
+    try {
+      const binds = [];
+      let sql = `SELECT c.id, c.complaintId, c.title, c.category, c.status, c.priority,
+        c.latitude, c.longitude, c.address, c.impactScore, c.createdAt, d.departmentName,
+        (SELECT COUNT(*) FROM complaint_supporters s WHERE s.complaintId = c.id) as supporterCount
+        FROM complaints c
+        LEFT JOIN departments d ON c.departmentId = d.id
+        WHERE c.latitude IS NOT NULL AND c.longitude IS NOT NULL`;
+      if (req.query.category) { sql += ' AND c.category = ?'; binds.push(req.query.category); }
+      if (req.query.priority) { sql += ' AND c.priority = ?'; binds.push(req.query.priority); }
+      if (req.query.status) { sql += ' AND c.status = ?'; binds.push(req.query.status); }
+      if (req.query.departmentId) { sql += ' AND c.departmentId = ?'; binds.push(req.query.departmentId); }
+      if (req.query.from) { sql += ' AND c.createdAt >= ?'; binds.push(req.query.from); }
+      if (req.query.to) { sql += ' AND c.createdAt <= ?'; binds.push(req.query.to); }
+      sql += ' ORDER BY c.createdAt DESC LIMIT 500';
+      const complaints = db.all(sql, binds);
+      return response.success(res, complaints);
+    } catch (err) {
+      next(err);
+    }
+  },
+
   getById(req, res, next) {
     try {
       const complaint = complaintService.getById(req.params.id);
-      if (req.user.role !== 'admin' && complaint.userId !== req.user.id) {
+      if (!roleService.isStaffRole(req.user.role) && complaint.userId !== req.user.id) {
         return response.forbidden(res, 'Not authorized to view this complaint');
       }
+      complaintService.anonymizeForUser(complaint, req.user);
       return response.success(res, complaint);
     } catch (err) {
       next(err);

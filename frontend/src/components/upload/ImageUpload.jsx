@@ -1,15 +1,37 @@
 import { useState, useRef, useCallback } from 'react'
 import Button from '../common/Button'
+import complaintService from '../../services/complaintService'
 
-export default function ImageUpload({ onImages, maxFiles = 5, multiple = true }) {
+export default function ImageUpload({ onImages, maxFiles = 5, multiple = true, checkDuplicate = true }) {
   const [images, setImages] = useState([])
   const [previews, setPreviews] = useState([])
   const [error, setError] = useState(null)
+  const [duplicateWarning, setDuplicateWarning] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [checking, setChecking] = useState(false)
   const inputRef = useRef(null)
 
-  const processFiles = useCallback((files) => {
+  const checkForDuplicate = useCallback(async (file) => {
+    try {
+      const formData = new FormData()
+      formData.append('image', file)
+      const res = await complaintService.checkDuplicateImage(formData)
+      if (res && res.isDuplicate) {
+        setDuplicateWarning(prev => ({
+          fileName: file.name,
+          matchedComplaintId: res.duplicates?.[0]?.complaintRef || 'an existing complaint'
+        }))
+        return true
+      }
+    } catch {
+      // Duplicate check is best-effort; never block upload on failure
+    }
+    return false
+  }, [])
+
+  const processFiles = useCallback(async (files) => {
     setError(null)
+    setDuplicateWarning(null)
     const fileArray = Array.from(files)
 
     if (images.length + fileArray.length > maxFiles) {
@@ -32,6 +54,15 @@ export default function ImageUpload({ onImages, maxFiles = 5, multiple = true })
 
     if (validFiles.length === 0) return
 
+    if (checkDuplicate) {
+      setChecking(true)
+      for (const file of validFiles) {
+        const isDup = await checkForDuplicate(file)
+        if (isDup) break
+      }
+      setChecking(false)
+    }
+
     setImages(prev => {
       const updated = [...prev, ...validFiles]
       if (onImages) onImages(updated)
@@ -45,7 +76,7 @@ export default function ImageUpload({ onImages, maxFiles = 5, multiple = true })
       }
       reader.readAsDataURL(file)
     })
-  }, [images.length, maxFiles, onImages])
+  }, [images.length, maxFiles, onImages, checkDuplicate, checkForDuplicate])
 
   const handleSelect = () => {
     inputRef.current?.click()
@@ -78,6 +109,7 @@ export default function ImageUpload({ onImages, maxFiles = 5, multiple = true })
       return updated
     })
     setPreviews(prev => prev.filter((_, i) => i !== index))
+    setDuplicateWarning(null)
   }
 
   return (
@@ -91,6 +123,16 @@ export default function ImageUpload({ onImages, maxFiles = 5, multiple = true })
         style={{ display: 'none' }}
       />
       {error && <p className="form-error">{error}</p>}
+      {duplicateWarning && (
+        <div className="duplicate-warning">
+          <span className="duplicate-warning-icon">&#9888;</span>
+          <div>
+            <strong>Possible duplicate image:</strong>
+            <p>{duplicateWarning.fileName} may already be present on {duplicateWarning.matchedComplaintId}. The system will re-check this image.</p>
+          </div>
+        </div>
+      )}
+      {checking && <p className="upload-checking">Checking image for duplicates...</p>}
       <div
         className={`upload-area ${isDragging ? 'drag-over' : ''}`}
         onClick={handleSelect}

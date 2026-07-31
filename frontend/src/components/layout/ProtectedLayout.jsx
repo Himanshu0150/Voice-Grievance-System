@@ -3,6 +3,8 @@ import { useAuth } from '../../context/AuthContext'
 import Navbar from '../navbar/Navbar'
 import Sidebar from '../sidebar/Sidebar'
 import Footer from '../footer/Footer'
+import ChatWidget from '../chat/ChatWidget'
+import NotificationPoller from '../notifications/NotificationPoller'
 
 export default function ProtectedLayout() {
   const { user, isAuthenticated, isAdmin, loading } = useAuth()
@@ -28,6 +30,8 @@ export default function ProtectedLayout() {
           <Outlet />
         </main>
       </div>
+      <ChatWidget />
+      <NotificationPoller />
       <Footer />
     </div>
   )
