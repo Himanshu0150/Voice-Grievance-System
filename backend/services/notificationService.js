@@ -21,7 +21,7 @@ const notificationService = {
       err.statusCode = 404;
       throw err;
     }
-    if (notification.user_id && notification.user_id !== userId) {
+    if (notification.userId && notification.userId !== userId) {
       const err = new Error('Not authorized');
       err.statusCode = 403;
       throw err;
@@ -39,7 +39,7 @@ const notificationService = {
   },
 
   create(userId, type, message) {
-    return Notification.create({ user_id: userId, type, message });
+    return Notification.create({ userId, type, message });
   }
 };
 

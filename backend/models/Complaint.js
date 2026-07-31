@@ -125,17 +125,22 @@ const Complaint = {
   },
 
   updateStatus(id, status, remark = null, priority = null, departmentId = null) {
-    const binds = [status];
-    let sql = "UPDATE complaints SET status = ?, updatedAt = datetime('now','localtime')";
-    if (remark !== null) { sql += ', resolutionRemark = ?'; binds.push(remark); }
-    if (priority !== null) { sql += ', priority = ?'; binds.push(priority); }
-    if (departmentId !== undefined) { sql += ', departmentId = ?'; binds.push(departmentId); }
-    if (status === 'Resolved') {
-      sql += ", resolvedAt = datetime('now','localtime')";
+    const binds = [];
+    const sets = [];
+    if (status !== undefined && status !== null) {
+      sets.push('status = ?');
+      binds.push(status);
+      if (status === 'Resolved') {
+        sets.push("resolvedAt = datetime('now','localtime')");
+      }
     }
-    sql += ' WHERE id = ?';
+    if (remark !== undefined && remark !== null) { sets.push('resolutionRemark = ?'); binds.push(remark); }
+    if (priority !== undefined && priority !== null) { sets.push('priority = ?'); binds.push(priority); }
+    if (departmentId !== undefined && departmentId !== null) { sets.push('departmentId = ?'); binds.push(departmentId); }
+    if (!sets.length) return this.findById(id);
+    sets.push("updatedAt = datetime('now','localtime')");
     binds.push(id);
-    db.run(sql, binds);
+    db.run(`UPDATE complaints SET ${sets.join(', ')} WHERE id = ?`, binds);
     db.saveDatabase();
     return this.findById(id);
   },

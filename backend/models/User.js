@@ -16,11 +16,11 @@ const User = {
 
   create(data) {
     const userId = this.generateUserId();
-    db.run(`INSERT INTO users (userId, fullName, email, phone, password, role, village, taluka, district, state, pincode, profileImage)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, data.fullName, data.email || null, data.phone, data.password || null, 'user',
-       data.village || null, data.taluka || null, data.district || null, data.state || null,
-       data.pincode || null, data.profileImage || null]
+    db.run(`INSERT INTO users (userId, fullName, email, phone, password, role, departmentId, village, taluka, district, state, pincode, profileImage)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [userId, data.fullName, data.email || null, data.phone, data.password || null, data.role || 'user',
+       data.departmentId || null, data.village || null, data.taluka || null, data.district || null,
+       data.state || null, data.pincode || null, data.profileImage || null]
     );
     const id = db.lastInsertId();
     db.saveDatabase();

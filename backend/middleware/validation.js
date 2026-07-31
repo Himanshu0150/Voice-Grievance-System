@@ -66,7 +66,7 @@ const complaintEditValidation = [
 ];
 
 const statusUpdateValidation = [
-  body('status').trim().isIn(['Pending', 'In Progress', 'Resolved', 'Rejected']).withMessage('Invalid status'),
+  body('status').trim().isIn(['Pending', 'Assigned', 'Accepted', 'Work Started', 'Inspection', 'In Progress', 'Resolved', 'Rejected']).withMessage('Invalid status'),
   handleValidationErrors
 ];
 

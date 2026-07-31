@@ -51,14 +51,7 @@ const complaintService = {
     Notification.create({
       userId: data.userId,
       title: 'Complaint Submitted',
-      message: `Your complaint "${data.title}" has been submitted successfully. Reference: ${complaint.complaintId}`,
-      type: 'info'
-    });
-
-    Notification.create({
-      userId,
-      title: 'Complaint Submitted Successfully',
-      message: `Your complaint has been registered. Reference: ${complaint.complaintId}. Category: ${complaintData.category}. Priority: ${complaintData.priority}.`,
+      message: `Your complaint "${data.title}" has been submitted successfully. Reference: ${complaint.complaintId}. Category: ${complaintData.category}. Priority: ${complaintData.priority}.`,
       type: 'info'
     });
 
@@ -178,16 +171,18 @@ const complaintService = {
     };
 
     const notif = statusNotifications[status] || { title: 'Status Updated', type: 'info' };
-    Notification.create({
-      userId: complaint.userId,
-      title: notif.title,
-      message: `Your complaint "${complaint.title}" status updated to ${status}.${remark ? ` Remarks: ${remark}` : ''}`,
-      type: notif.type
-    });
+    if (status !== undefined && status !== null) {
+      Notification.create({
+        userId: complaint.userId,
+        title: notif.title,
+        message: `Your complaint "${complaint.title}" status updated to ${status}.${remark ? ` Remarks: ${remark}` : ''}`,
+        type: notif.type
+      });
+      if (status === 'Resolved') escalationService.resolveEscalations(id);
+    }
 
     const updatedWithDept = Complaint.findById(id);
     timelineService.addStatusEvents(updatedWithDept, null, 'admin');
-    if (status === 'Resolved') escalationService.resolveEscalations(id);
 
     return this.formatComplaint(updated);
   },

@@ -377,7 +377,7 @@ async function initializeDatabase() {
     const permStmt = db.prepare('INSERT OR IGNORE INTO role_permissions (role, permission) VALUES (?, ?)');
     const permMap = {
       superadmin: ['dashboard.view', 'complaint.read', 'complaint.update', 'complaint.resolve', 'complaint.manage', 'users.manage', 'roles.manage', 'departments.manage', 'analytics.view', 'heatmap.view', 'escalation.manage', 'settings.manage', 'feedback.view', 'chat.use', 'officer.manage'],
-      admin: ['dashboard.view', 'complaint.read', 'complaint.update', 'complaint.resolve', 'complaint.manage', 'users.manage', 'departments.manage', 'analytics.view', 'heatmap.view', 'escalation.manage', 'settings.manage', 'feedback.view', 'chat.use'],
+      admin: ['dashboard.view', 'complaint.read', 'complaint.update', 'complaint.resolve', 'complaint.manage', 'users.manage', 'officer.manage', 'departments.manage', 'analytics.view', 'heatmap.view', 'escalation.manage', 'settings.manage', 'feedback.view', 'chat.use'],
       department_admin: ['dashboard.view', 'complaint.read', 'complaint.update', 'complaint.resolve', 'heatmap.view', 'analytics.view', 'escalation.manage', 'chat.use'],
       officer: ['dashboard.view', 'complaint.read', 'complaint.update', 'complaint.resolve', 'chat.use'],
       user: ['complaint.read', 'chat.use']
@@ -387,6 +387,10 @@ async function initializeDatabase() {
     });
     permStmt.free();
   }
+
+  const officerManageStmt = db.prepare('INSERT OR IGNORE INTO role_permissions (role, permission) VALUES (?, ?)');
+  officerManageStmt.run(['admin', 'officer.manage']);
+  officerManageStmt.free();
 
   db.run(`CREATE TABLE IF NOT EXISTS login_history (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -6,6 +6,7 @@ frontend/dist/
 
 # Database
 backend/database/*.db
+backend/database/*.db.bak
 backend/database/backup/
 
 # Uploads
