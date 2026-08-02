@@ -23,7 +23,8 @@ const authService = {
   },
 
   cleanupExpiredOtps(phone) {
-    db.run('DELETE FROM otp_verifications WHERE phone_number = ? AND expires_at <= datetime(\'now\', \'localtime\')', [phone]);
+    const now = new Date().toISOString();
+    db.run('DELETE FROM otp_verifications WHERE phone_number = ? AND expires_at <= ?', [phone, now]);
     db.saveDatabase();
   },
 

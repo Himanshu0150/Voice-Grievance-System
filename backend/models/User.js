@@ -8,23 +8,29 @@ function sanitize(row) {
 
 const User = {
   generateUserId() {
-    const result = db.exec('SELECT COUNT(*) as count FROM users');
-    const count = result[0]?.values[0][0] || 0;
-    const next = (count + 1).toString().padStart(6, '0');
+    const result = db.exec("SELECT COALESCE(MAX(CAST(SUBSTR(userId, 5) AS INTEGER)), 0) as maxId FROM users WHERE userId LIKE 'USR-%'");
+    const maxId = result[0]?.values[0][0] || 0;
+    const next = (maxId + 1).toString().padStart(6, '0');
     return `USR-${next}`;
   },
 
   create(data) {
     const userId = this.generateUserId();
-    db.run(`INSERT INTO users (userId, fullName, email, phone, password, role, departmentId, village, taluka, district, state, pincode, profileImage)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, data.fullName, data.email || null, data.phone, data.password || null, data.role || 'user',
-       data.departmentId || null, data.village || null, data.taluka || null, data.district || null,
-       data.state || null, data.pincode || null, data.profileImage || null]
-    );
+    const insertCols = this.tableColumns().includes('departmentId')
+      ? ['userId', 'fullName', 'email', 'phone', 'password', 'role', 'departmentId', 'village', 'taluka', 'district', 'state', 'pincode', 'profileImage']
+      : ['userId', 'fullName', 'email', 'phone', 'password', 'role', 'village', 'taluka', 'district', 'state', 'pincode', 'profileImage'];
+    const values = [userId, data.fullName, data.email || null, data.phone, data.password || null, data.role || 'user'];
+    if (insertCols.includes('departmentId')) values.push(data.departmentId || null);
+    values.push(data.village || null, data.taluka || null, data.district || null, data.state || null, data.pincode || null, data.profileImage || null);
+    db.run(`INSERT INTO users (${insertCols.join(', ')}) VALUES (${insertCols.map(() => '?').join(', ')})`, values);
     const id = db.lastInsertId();
     db.saveDatabase();
     return sanitize(this.findById(id));
+  },
+
+  tableColumns() {
+    const cols = db.exec('PRAGMA table_info(users)')[0]?.values || [];
+    return cols.map(c => c[1]);
   },
 
   findById(id) {

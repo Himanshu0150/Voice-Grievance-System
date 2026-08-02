@@ -84,7 +84,7 @@ export default function Register() {
   const validate = () => {
     const errs = {}
     if (!form.fullName.trim()) errs.fullName = 'Name is required'
-    if (!form.phone || form.phone.length !== 10) errs.phone = 'Enter a valid 10-digit mobile number'
+    if (!form.phone || !/^[6-9]\d{9}$/.test(form.phone)) errs.phone = 'Enter a valid 10-digit mobile number'
     if (!form.village.trim()) errs.village = 'Village is required'
     return errs
   }
