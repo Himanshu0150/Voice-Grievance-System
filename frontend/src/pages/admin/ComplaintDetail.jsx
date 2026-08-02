@@ -5,6 +5,7 @@ import Button from '../../components/common/Button'
 import Select from '../../components/common/Select'
 import Textarea from '../../components/common/Textarea'
 import StatusChip from '../../components/common/StatusChip'
+import EmotionBadge from '../../components/common/EmotionBadge'
 import ImageViewer from '../../components/common/ImageViewer'
 import ImageUpload from '../../components/upload/ImageUpload'
 import Loader from '../../components/common/Loader'
@@ -181,6 +182,7 @@ export default function AdminComplaintDetail() {
               <span>Category: <strong>{complaint.category}</strong></span>
               {complaint.departmentName && <span>Dept: <strong>{complaint.departmentName}</strong></span>}
               <span>Priority: <strong>{complaint.priority || 'Medium'}</strong></span>
+              {complaint.emotion && <span>Emotion: <EmotionBadge emotion={complaint.emotion} confidence={complaint.emotionConfidence} /></span>}
               <span>Submitted: <strong>{formatDateTime(complaint.createdAt)}</strong></span>
               <span>By: <strong>{complaint.userName || 'Anonymous Citizen'}</strong></span>
               <span>Village: <strong>{complaint.village || '-'}</strong></span>
@@ -240,6 +242,20 @@ export default function AdminComplaintDetail() {
                   <label>Priority</label>
                   <span className={`priority-badge priority-${complaint.priority?.toLowerCase()}`}>{complaint.priority}</span>
                 </div>
+                {complaint.emotion && (
+                  <div className="ai-analysis-item">
+                    <label>Detected Emotion</label>
+                    <span className="ai-value">
+                      <EmotionBadge emotion={complaint.emotion} confidence={complaint.emotionConfidence} />
+                    </span>
+                  </div>
+                )}
+                {complaint.emotionReason && (
+                  <div className="ai-analysis-item full-width">
+                    <label>Emotion Reason</label>
+                    <span className="ai-value">{complaint.emotionReason}</span>
+                  </div>
+                )}
                 {(() => {
                   const kws = Array.isArray(complaint.aiKeywords)
                     ? complaint.aiKeywords

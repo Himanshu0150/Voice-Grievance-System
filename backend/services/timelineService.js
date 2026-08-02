@@ -3,6 +3,7 @@ const db = require('../config/database');
 const EVENT_ORDER = [
   'Submitted',
   'AI Processed',
+  'AI Detected Emotion',
   'Assigned',
   'Accepted',
   'Work Started',

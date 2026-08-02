@@ -297,6 +297,21 @@ export default function NewComplaint() {
               <label>Confidence</label>
               <span className="voice-result-value">{(aiResult.confidence * 100).toFixed(0)}%</span>
             </div>
+            {aiResult.emotion && (
+              <div className="voice-result-item">
+                <label>Detected Emotion</label>
+                <span className="voice-result-value highlight">
+                  {aiResult.emotion}
+                  {aiResult.emotionConfidence != null && ` (${Math.round(aiResult.emotionConfidence * 100)}%)`}
+                </span>
+              </div>
+            )}
+            {aiResult.emotionReason && (
+              <div className="voice-result-item full-width">
+                <label>Emotion Reason</label>
+                <span className="voice-result-value">{aiResult.emotionReason}</span>
+              </div>
+            )}
             {aiResult.needsManualReview && (
               <div className="voice-result-item full-width">
                 <span className="voice-result-warning">Needs Manual Review - AI confidence was low</span>

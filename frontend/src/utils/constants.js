@@ -105,6 +105,18 @@ export const PRIORITY_COLORS = {
   'Low': '#6B7280'
 }
 
+export const EMOTION_LEVELS = ['Calm', 'Neutral', 'Concerned', 'Angry', 'Fear', 'Distress', 'Panic']
+
+export const EMOTION_META = {
+  'Calm': { icon: '😌', color: '#2E9E6B', label: 'Calm' },
+  'Neutral': { icon: '😐', color: '#6B7280', label: 'Neutral' },
+  'Concerned': { icon: '🙁', color: '#F59E0B', label: 'Concerned' },
+  'Angry': { icon: '😠', color: '#F97316', label: 'Angry' },
+  'Fear': { icon: '😨', color: '#C026D3', label: 'Fear' },
+  'Distress': { icon: '😫', color: '#DC3545', label: 'Distress' },
+  'Panic': { icon: '🚨', color: '#B91C1C', label: 'Panic' }
+}
+
 export const ROLE_LABELS = {
   superadmin: 'Super Admin',
   admin: 'Admin',

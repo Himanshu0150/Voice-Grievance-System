@@ -7,6 +7,8 @@ const VALID_CATEGORIES = [
   'Public Property', 'Government Office', 'Traffic', 'Environment', 'Others'
 ];
 
+const EMOTION_VALUES = ['Calm', 'Neutral', 'Concerned', 'Angry', 'Fear', 'Distress', 'Panic'];
+
 const GEMINI_ENDPOINT = process.env.GEMINI_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
 
@@ -70,8 +72,15 @@ function extractTextFromResponse(res) {
 }
 
 function extractJson(text) {
+  if (!text) return null;
   const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-  try { return JSON.parse(cleaned); } catch { return null; }
+  try { return JSON.parse(cleaned); } catch { /* fall through to brace matching */ }
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start !== -1 && end > start) {
+    try { return JSON.parse(cleaned.substring(start, end + 1)); } catch { return null; }
+  }
+  return null;
 }
 
 const aiProvider = {
@@ -240,6 +249,40 @@ Return ONLY valid JSON with these fields:
     }
   },
 
+  async detectEmotion(text) {
+    const apiKey = geminiApiKey();
+    if (!apiKey) {
+      logger.warn('[AI EMOTION] No API key configured, using neutral fallback');
+      return { emotion: 'Neutral', confidence: 0.5, reason: 'AI provider not configured' };
+    }
+    if (!text || !text.trim()) {
+      return { emotion: 'Neutral', confidence: 0.5, reason: 'No complaint text available' };
+    }
+
+    const systemPrompt = `You are an emotion detection AI for an Indian Panchayat grievance system.
+Analyze the emotional tone of the citizen's complaint and return ONLY valid JSON:
+{
+  "emotion": "One of: Calm, Neutral, Concerned, Angry, Fear, Distress, Panic",
+  "confidence": 0.0-1.0,
+  "reason": "One-line explanation of why this emotion was detected"
+}`;
+    const userPrompt = `Complaint text: ${text}\nRespond with JSON only.`;
+
+    try {
+      logger.info('[AI EMOTION] Sending to Gemini for emotion detection');
+      const result = await this._callGeminiClassify(systemPrompt, userPrompt, { maxTokens: 2048 });
+      const emotion = EMOTION_VALUES.includes(result.emotion) ? result.emotion : 'Neutral';
+      return {
+        emotion,
+        confidence: typeof result.confidence === 'number' ? Math.min(1, Math.max(0, result.confidence)) : 0.5,
+        reason: result.reason || ''
+      };
+    } catch (err) {
+      logger.error(`[AI EMOTION] Gemini call failed: ${err.message}`);
+      return { emotion: 'Neutral', confidence: 0.5, reason: 'Emotion detection failed' };
+    }
+  },
+
   async chat(systemPrompt, userPrompt, options = {}) {
     const apiKey = geminiApiKey();
     if (!apiKey) {
@@ -303,9 +346,9 @@ Respond with JSON only.`;
     }
   },
 
-  async _callGeminiClassify(systemPrompt, userPrompt) {
+  async _callGeminiClassify(systemPrompt, userPrompt, options = {}) {
     const url = `${GEMINI_ENDPOINT}/models/${GEMINI_MODEL}:generateContent`;
-    const body = buildRequestBody(systemPrompt, userPrompt, { temperature: 0.1, maxTokens: 2048 });
+    const body = buildRequestBody(systemPrompt, userPrompt, { temperature: 0.1, maxTokens: options.maxTokens || 2048 });
     const res = await httpsRequest(url, 'POST', geminiHeaders(), body);
     if (res.status !== 200) {
       const fullError = JSON.stringify(res.data);

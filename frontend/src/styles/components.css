@@ -255,6 +255,97 @@
   color: var(--info);
 }
 
+/* ========== EMOTION BADGE ========== */
+.emotion-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 10px;
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  border-radius: 20px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+
+.emotion-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.emotion-confidence {
+  opacity: 0.75;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.emotion-badge:empty {
+  display: none;
+}
+
+/* ========== EMOTION INSIGHTS (dashboard / analytics) ========== */
+.emotion-insight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.emotion-insight-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.emotion-insight-item strong {
+  display: block;
+  font-size: var(--fs-body);
+}
+
+.emotion-insight-item small {
+  color: var(--muted);
+  font-size: var(--fs-caption);
+}
+
+.emotion-insight-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.emotion-alert-box {
+  background: var(--danger-light);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.emotion-alert-box p {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-body);
+  font-weight: 500;
+  color: var(--danger-dark);
+  margin: 0;
+}
+
+.emotion-alert-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.emotion-empty-hint {
+  color: var(--muted);
+  font-size: var(--fs-caption);
+  font-style: italic;
+}
+
 /* ========== SEARCH BAR ========== */
 .search-bar {
   position: relative;

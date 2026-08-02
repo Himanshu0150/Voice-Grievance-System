@@ -6,9 +6,19 @@ import LineChart from '../../components/charts/LineChart'
 import Loader from '../../components/common/Loader'
 import ErrorState from '../../components/common/ErrorState'
 import adminService from '../../services/adminService'
+import { EMOTION_META } from '../../utils/constants'
 
 const STATUS_COLORS = { Pending: '#FFC107', 'In Progress': '#0B5ED7', Resolved: '#198754', Rejected: '#DC3545' }
 const PRIORITY_COLORS = { Critical: '#DC3545', High: '#FD7E14', Medium: '#FFC107', Low: '#6B7280' }
+const EMOTION_COLORS = {
+  Calm: EMOTION_META.Calm.color,
+  Neutral: EMOTION_META.Neutral.color,
+  Concerned: EMOTION_META.Concerned.color,
+  Angry: EMOTION_META.Angry.color,
+  Fear: EMOTION_META.Fear.color,
+  Distress: EMOTION_META.Distress.color,
+  Panic: EMOTION_META.Panic.color
+}
 
 export default function AdminAnalytics() {
   const [data, setData] = useState(null)
@@ -73,6 +83,8 @@ export default function AdminAnalytics() {
         <Card><div className="stat-card"><h3>AI Accuracy</h3><p className="stat-value">{aiAccuracy.accuracyRate != null ? `${aiAccuracy.accuracyRate}%` : '-'}</p></div></Card>
         <Card><div className="stat-card"><h3>Avg Resolution</h3><p className="stat-value">{data?.avgResolutionDays != null ? `${data.avgResolutionDays}d` : '-'}</p></div></Card>
         <Card><div className="stat-card"><h3>Supporters</h3><p className="stat-value">{data?.supporterStats?.total || 0}</p></div></Card>
+        <Card><div className="stat-card"><h3>Distress</h3><p className="stat-value" style={{ color: '#DC3545' }}>{data?.emotionAnalytics?.distress || 0}</p></div></Card>
+        <Card><div className="stat-card"><h3>Panic</h3><p className="stat-value" style={{ color: '#B91C1C' }}>{data?.emotionAnalytics?.panic || 0}</p></div></Card>
       </div>
 
       <div className="analytics-grid">
@@ -116,6 +128,45 @@ export default function AdminAnalytics() {
               data={priorityPieData}
               size={200}
             />
+          </Card>
+        </div>
+
+        <div className="analytics-card-wide">
+          <Card>
+            <PieChart
+              title="Emotion Distribution"
+              data={(data?.emotionAnalytics?.distribution || []).map(e => ({
+                label: e.label,
+                value: e.value,
+                color: EMOTION_COLORS[e.label]
+              })).filter(d => d.value > 0)}
+              size={200}
+            />
+          </Card>
+        </div>
+
+        <div className="analytics-card">
+          <Card>
+            <h4>Most Common Emotion</h4>
+            {data?.emotionAnalytics?.mostCommon ? (
+              <div className="emotion-insight-list">
+                {(() => {
+                  const top = data.emotionAnalytics.mostCommon
+                  const meta = EMOTION_META[top.emotion] || { icon: '😐', color: '#6B7280' }
+                  return (
+                    <div className="emotion-insight-item">
+                      <span className="emotion-insight-icon" style={{ color: meta.color }}>{meta.icon}</span>
+                      <div>
+                        <strong style={{ color: meta.color }}>{top.emotion}</strong>
+                        <small>{top.count} complaint{top.count === 1 ? '' : 's'}</small>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            ) : (
+              <p className="emotion-empty-hint">No emotion data yet.</p>
+            )}
           </Card>
         </div>
 

@@ -21,6 +21,8 @@ const analyticsService = {
     const openEscalations = db.count("SELECT COUNT(*) as count FROM complaint_escalations WHERE status = 'Open'");
     const totalSupporters = db.count("SELECT COUNT(*) as count FROM complaint_supporters");
     const avgImpact = db.get("SELECT COALESCE(AVG(impactScore), 0) as avg FROM complaints WHERE impactScore IS NOT NULL");
+    const distressCount = db.count("SELECT COUNT(*) as count FROM complaints WHERE emotion = 'Distress'");
+    const panicCount = db.count("SELECT COUNT(*) as count FROM complaints WHERE emotion = 'Panic'");
 
     return {
       totalUsers: User.countByRole('user'),
@@ -37,8 +39,26 @@ const analyticsService = {
       avgResolutionDays: round(avgResolutionDays?.avg || 0, 1),
       openEscalations,
       totalSupporters,
-      avgImpact: round(avgImpact?.avg || 0)
+      avgImpact: round(avgImpact?.avg || 0),
+      emotionDistribution: this.getEmotionDistribution(),
+      mostCommonEmotion: this.getMostCommonEmotion(),
+      distressCount,
+      panicCount
     };
+  },
+
+  getEmotionDistribution() {
+    const rows = db.exec("SELECT emotion, COUNT(*) as count FROM complaints WHERE emotion IS NOT NULL GROUP BY emotion");
+    const map = { Calm: 0, Neutral: 0, Concerned: 0, Angry: 0, Fear: 0, Distress: 0, Panic: 0 };
+    rows.forEach(r => { map[r.values[0]] = r.values[1]; });
+    return Object.entries(map).map(([label, value]) => ({ label, value }));
+  },
+
+  getMostCommonEmotion() {
+    const row = db.get(
+      "SELECT emotion, COUNT(*) as count FROM complaints WHERE emotion IS NOT NULL GROUP BY emotion ORDER BY count DESC LIMIT 1"
+    );
+    return row ? { emotion: row.emotion, count: row.count } : null;
   },
 
   getOfficerPerformance() {
@@ -182,6 +202,12 @@ const analyticsService = {
       aiAccuracy: this.getAiAccuracy(),
       priorityDistribution: this.getPriorityDistribution(),
       escalationTrend: this.getEscalationTrend(),
+      emotionAnalytics: {
+        distribution: this.getEmotionDistribution(),
+        mostCommon: this.getMostCommonEmotion(),
+        distress: db.count("SELECT COUNT(*) as count FROM complaints WHERE emotion = 'Distress'"),
+        panic: db.count("SELECT COUNT(*) as count FROM complaints WHERE emotion = 'Panic'")
+      },
       supporterStats: {
         total: db.count('SELECT COUNT(*) as count FROM complaint_supporters'),
         avgPerComplaint: round(db.get('SELECT COALESCE(AVG(cnt), 0) as avg FROM (SELECT COUNT(*) as cnt FROM complaint_supporters GROUP BY complaintId)')?.avg || 0, 1)

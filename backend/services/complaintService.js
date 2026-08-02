@@ -257,7 +257,10 @@ const complaintService = {
       impactScore: data.impactScore || null,
       prioritySource: data.prioritySource || 'ai',
       isAnonymous: data.isAnonymous ? 1 : 0,
-      similarComplaintId: data.similarComplaintId || null
+      similarComplaintId: data.similarComplaintId || null,
+      emotion: data.emotion || null,
+      emotionConfidence: data.emotionConfidence || null,
+      emotionReason: data.emotionReason || null
     };
 
     const complaint = Complaint.createVoice(complaintData);
@@ -280,6 +283,9 @@ const complaintService = {
     timelineService.add(complaint.id, 'Submitted', `Complaint ${complaint.complaintId} submitted by citizen`, data.userId, 'user');
     if (complaintData.aiProcessed) {
       timelineService.add(complaint.id, 'AI Processed', `AI classified as ${complaintData.category} (${complaintData.priority}) with ${Math.round((complaintData.aiConfidence || 0) * 100)}% confidence`, null, 'ai');
+    }
+    if (complaintData.emotion) {
+      timelineService.add(complaint.id, 'AI Detected Emotion', `AI detected emotion: ${complaintData.emotion}${complaintData.emotionConfidence ? ` (${Math.round(complaintData.emotionConfidence * 100)}% confidence)` : ''}`, null, 'ai');
     }
 
     logger.info(`Voice complaint created: ${complaint.complaintId}, category: ${complaintData.category}, confidence: ${complaintData.aiConfidence}`);
@@ -315,6 +321,9 @@ const complaintService = {
     complaint.originalLanguage = complaint.originalLanguage || complaint.speechLanguage || null;
     complaint.suggestedAction = complaint.suggestedAction || null;
     complaint.officerRecommendation = complaint.officerRecommendation || null;
+    complaint.emotion = complaint.emotion || null;
+    complaint.emotionConfidence = complaint.emotionConfidence != null ? complaint.emotionConfidence : null;
+    complaint.emotionReason = complaint.emotionReason || null;
     complaint.estimatedResolutionDays = complaint.estimatedResolutionDays != null ? complaint.estimatedResolutionDays : estimateService.estimateForCategory(complaint.category);
     complaint.impactScore = complaint.impactScore != null ? complaint.impactScore : null;
     complaint.supporterCount = complaint.supporterCount || 0;

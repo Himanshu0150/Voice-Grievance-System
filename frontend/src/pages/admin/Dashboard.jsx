@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import StatisticCard from '../../components/cards/StatisticCard'
 import ComplaintCard from '../../components/cards/ComplaintCard'
 import BarChart from '../../components/charts/BarChart'
+import PieChart from '../../components/charts/PieChart'
 import Loader from '../../components/common/Loader'
 import ErrorState from '../../components/common/ErrorState'
 import adminService from '../../services/adminService'
 import { formatDate } from '../../utils/helpers'
+import { EMOTION_META } from '../../utils/constants'
 
 const quickActions = [
   { to: '/admin/complaints', label: 'All Complaints', color: '#0B5ED7', icon: 'C' },
@@ -79,6 +81,8 @@ export default function AdminDashboard() {
         <StatisticCard title="High Priority" value={highPriorityCount} color="#FD7E14" icon={<span>H</span>} />
         <StatisticCard title="Open Escalations" value={data?.openEscalations || 0} color="#6F42C1" icon={<span>E</span>} />
         <StatisticCard title="Total Supporters" value={data?.totalSupporters || 0} color="#20C997" icon={<span>S</span>} />
+        <StatisticCard title="Distress" value={data?.distressCount || 0} color="#DC3545" icon={<span>😫</span>} />
+        <StatisticCard title="Panic" value={data?.panicCount || 0} color="#B91C1C" icon={<span>🚨</span>} />
         <StatisticCard title="AI Pending Review" value={aiReviewCount} color="#FD7E14" icon={<span>AI</span>} />
         <StatisticCard title="Avg AI Confidence" value={`${avgConfidence}%`} color="#0DCAF0" icon={<span>%</span>} />
       </div>
@@ -96,6 +100,56 @@ export default function AdminDashboard() {
         </div>
         <div className="dashboard-chart-card">
           <BarChart title="Monthly Complaints" data={data?.monthlyStats || []} height={250} />
+        </div>
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="dashboard-chart-card">
+          <PieChart
+            title="Emotion Distribution"
+            data={(data?.emotionDistribution || []).map(e => ({
+              ...e,
+              color: (EMOTION_META[e.label] || {}).color
+            }))}
+            size={190}
+          />
+        </div>
+        <div className="dashboard-chart-card">
+          <div className="section-card-header">
+            <h3>Emotion Insights</h3>
+          </div>
+          {data?.mostCommonEmotion ? (
+            <div className="emotion-insight-list">
+              {(() => {
+                const top = data.mostCommonEmotion
+                const meta = EMOTION_META[top.emotion] || { icon: '😐', color: '#6B7280' }
+                return (
+                  <div className="emotion-insight-item">
+                    <span className="emotion-insight-icon" style={{ color: meta.color }}>{meta.icon}</span>
+                    <div>
+                      <strong style={{ color: meta.color }}>{top.emotion}</strong>
+                      <small>Most common emotion in {top.count} complaint{top.count === 1 ? '' : 's'}</small>
+                    </div>
+                  </div>
+                )
+              })()}
+              {(data?.distressCount > 0 || data?.panicCount > 0) && (
+                <div className="emotion-alert-box">
+                  {data?.distressCount > 0 && (
+                    <p><span className="emotion-alert-dot" style={{ backgroundColor: '#DC3545' }} /> {data.distressCount} complaint(s) with Distress</p>
+                  )}
+                  {data?.panicCount > 0 && (
+                    <p><span className="emotion-alert-dot" style={{ backgroundColor: '#B91C1C' }} /> {data.panicCount} complaint(s) with Panic</p>
+                  )}
+                </div>
+              )}
+              {!data?.distressCount && !data?.panicCount && (
+                <p className="emotion-empty-hint">No high-distress complaints detected yet.</p>
+              )}
+            </div>
+          ) : (
+            <p className="emotion-empty-hint">No emotion data yet. Submit a voice complaint to get started.</p>
+          )}
         </div>
       </div>
 
