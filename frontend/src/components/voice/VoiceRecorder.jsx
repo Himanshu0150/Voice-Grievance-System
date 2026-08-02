@@ -1,24 +1,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import Button from '../common/Button'
+import { SPEECH_LANGUAGES } from '../../utils/constants'
+import { getSelectedLanguage, getLanguageObject } from '../../utils/language'
 
-export const LANGUAGES = [
-  { code: 'hi-IN', label: 'Hindi' },
-  { code: 'mr-IN', label: 'Marathi' },
-  { code: 'gu-IN', label: 'Gujarati' },
-  { code: 'ta-IN', label: 'Tamil' },
-  { code: 'te-IN', label: 'Telugu' },
-  { code: 'kn-IN', label: 'Kannada' },
-  { code: 'ml-IN', label: 'Malayalam' },
-  { code: 'pa-IN', label: 'Punjabi' },
-  { code: 'bn-IN', label: 'Bengali' },
-  { code: 'or-IN', label: 'Odia' },
-  { code: 'en-IN', label: 'English' }
-]
+export const LANGUAGES = SPEECH_LANGUAGES
 
 function getDefaultLanguage() {
-  const browserLang = navigator.language || 'en-IN'
-  const match = LANGUAGES.find(l => l.code.startsWith(browserLang.slice(0, 2)))
-  return match ? match.code : 'hi-IN'
+  return getSelectedLanguage()
 }
 
 export default function VoiceRecorder({ onTranscript, onAudioBlob, onLanguageChange, disabled }) {
@@ -82,7 +70,7 @@ export default function VoiceRecorder({ onTranscript, onAudioBlob, onLanguageCha
     try {
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition()
-        recognition.lang = language
+        recognition.lang = getLanguageObject(language).speech
         recognition.continuous = true
         recognition.interimResults = true
 

@@ -5,7 +5,7 @@ const chatController = {
   async ask(req, res, next) {
     try {
       const { message } = req.body;
-      const result = await chatService.ask(message, req.user);
+      const result = await chatService.ask(message, req.user, req.body.language || 'en');
       return response.success(res, result, 'Chat response generated');
     } catch (err) {
       next(err);

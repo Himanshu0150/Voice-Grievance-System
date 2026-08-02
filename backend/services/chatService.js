@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const aiProvider = require('./aiProvider');
+const translationService = require('./translationService');
 const logger = require('../utils/logger');
 
 const SYSTEM_PROMPT = `You are "Sevak AI", the official AI assistant for the Voice-Based Grievance System (Panchayat).
@@ -18,7 +19,7 @@ Rules:
 - Do not invent complaint statuses. Only report the status from the provided complaint data.`;
 
 const chatService = {
-  async ask(message, user = null) {
+  async ask(message, user = null, targetLanguage = 'en') {
     if (!message || !message.trim()) {
       const err = new Error('Message is required');
       err.statusCode = 400;
@@ -61,11 +62,21 @@ const chatService = {
           { temperature: 0.4, maxTokens: 512 }
         );
       } catch (err) {
-        logger.error(`[CHAT] Groq call failed: ${err.message}`);
+        logger.error(`[CHAT] AI call failed: ${err.message}`);
         reply = this._fallbackReply(message);
       }
     } else {
       reply = this._fallbackReply(message);
+    }
+
+    const targetCode = translationService.getLanguageCode(targetLanguage);
+    if (reply && targetCode && targetCode !== 'en' && aiProvider.isConfigured()) {
+      try {
+        const localized = await translationService.translateText(reply, targetCode);
+        if (localized && localized !== reply) reply = localized;
+      } catch (err) {
+        logger.warn(`[CHAT] Reply translation failed (${targetCode}): ${err.message}`);
+      }
     }
 
     return {

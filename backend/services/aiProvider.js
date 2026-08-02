@@ -7,9 +7,8 @@ const VALID_CATEGORIES = [
   'Public Property', 'Government Office', 'Traffic', 'Environment', 'Others'
 ];
 
-const GROQ_MODEL = process.env.AI_GROQ_MODEL || 'llama-3.3-70b-versatile';
-const GROQ_VISION_MODEL = process.env.AI_GROQ_VISION_MODEL || 'llama-3.2-11b-vision-preview';
-const GROQ_ENDPOINT = process.env.AI_GROQ_ENDPOINT || 'https://api.groq.com/openai/v1';
+const GEMINI_ENDPOINT = process.env.GEMINI_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
 
 let _connected = false;
 let _connectionError = null;
@@ -37,23 +36,57 @@ function httpsRequest(url, method, headers, body) {
   });
 }
 
-function groqApiKey() {
-  return process.env.AI_API_KEY || '';
+function geminiApiKey() {
+  return process.env.GEMINI_API_KEY || '';
+}
+
+function geminiHeaders() {
+  return { 'x-goog-api-key': geminiApiKey() };
+}
+
+function buildRequestBody(systemPrompt, userPrompt, options = {}) {
+  const body = {
+    contents: [
+      {
+        role: 'user',
+        parts: [{ text: userPrompt }]
+      }
+    ],
+    generationConfig: {
+      temperature: options.temperature || 0.1,
+      maxOutputTokens: options.maxTokens || 1024
+    }
+  };
+  if (systemPrompt) {
+    body.systemInstruction = { parts: [{ text: systemPrompt }] };
+  }
+  return body;
+}
+
+function extractTextFromResponse(res) {
+  const parts = res?.candidates?.[0]?.content?.parts;
+  if (!parts || parts.length === 0) return '';
+  return parts.map(p => p.text || '').join('').trim();
+}
+
+function extractJson(text) {
+  const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  try { return JSON.parse(cleaned); } catch { return null; }
 }
 
 const aiProvider = {
   isConfigured() {
-    return !!groqApiKey();
+    return !!geminiApiKey();
   },
 
   getStatus() {
     const configured = this.isConfigured();
     return {
-      provider: 'groq',
+      provider: 'gemini',
       configured,
       connected: configured && _connected,
       connectionError: _connectionError,
-      model: GROQ_MODEL,
+      model: GEMINI_MODEL,
       translationEnabled: configured && _connected,
       classificationEnabled: configured && _connected,
       visionEnabled: configured && _connected
@@ -61,7 +94,7 @@ const aiProvider = {
   },
 
   async verifyConnection() {
-    const apiKey = groqApiKey();
+    const apiKey = geminiApiKey();
     if (!apiKey) {
       _connected = false;
       _connectionError = 'No API key configured';
@@ -69,35 +102,35 @@ const aiProvider = {
     }
 
     try {
-      const url = `${GROQ_ENDPOINT}/chat/completions`;
-      const body = {
-        model: GROQ_MODEL,
-        messages: [{ role: 'user', content: 'Reply with exactly one word: OK' }],
-        max_tokens: 10
-      };
-      const headers = { Authorization: `Bearer ${apiKey}` };
-      const res = await httpsRequest(url, 'POST', headers, body);
-      if (res.status === 200 && res.data?.choices?.[0]?.message?.content) {
+      const url = `${GEMINI_ENDPOINT}/models/${GEMINI_MODEL}:generateContent`;
+      const body = buildRequestBody(
+        '',
+        'Reply with exactly one word: OK',
+        { maxTokens: 100 }
+      );
+      const res = await httpsRequest(url, 'POST', geminiHeaders(), body);
+      const text = extractTextFromResponse(res.data);
+      if (res.status === 200 && text) {
         _connected = true;
         _connectionError = null;
-        logger.info(`[AI] Groq connected successfully (model: ${GROQ_MODEL})`);
-        return { connected: true, model: GROQ_MODEL };
+        logger.info(`[AI] Gemini connected successfully (model: ${GEMINI_MODEL})`);
+        return { connected: true, model: GEMINI_MODEL };
       }
       const msg = res.data?.error?.message || `HTTP ${res.status}`;
       _connected = false;
       _connectionError = msg;
-      logger.error(`[AI] Groq connection failed: ${msg}`);
+      logger.error(`[AI] Gemini connection failed: ${msg}`);
       return { connected: false, error: msg };
     } catch (err) {
       _connected = false;
       _connectionError = err.message;
-      logger.error(`[AI] Groq connection failed: ${err.message}`);
+      logger.error(`[AI] Gemini connection failed: ${err.message}`);
       return { connected: false, error: err.message };
     }
   },
 
   async classify(englishText, imageAnalysisText = '') {
-    const apiKey = groqApiKey();
+    const apiKey = geminiApiKey();
     if (!apiKey) {
       logger.warn('[AI CLASSIFY] No API key configured, using mock classification');
       return this._mockClassify(englishText, imageAnalysisText);
@@ -118,12 +151,12 @@ const aiProvider = {
     const userPrompt = `Complaint: ${englishText}\n${imageAnalysisText ? `Image Analysis: ${imageAnalysisText}\n` : ''}Respond with JSON only.`;
 
     try {
-      logger.info('[AI CLASSIFY] Sending to Groq for classification');
-      const result = await this._callGroqClassify(systemPrompt, userPrompt);
+      logger.info('[AI CLASSIFY] Sending to Gemini for classification');
+      const result = await this._callGeminiClassify(systemPrompt, userPrompt);
       logger.info(`[AI CLASSIFY] Result: ${result.category} (${result.priority}) confidence: ${result.confidence}`);
       return result;
     } catch (err) {
-      logger.error(`[AI CLASSIFY] Groq call failed: ${err.message}`);
+      logger.error(`[AI CLASSIFY] Gemini call failed: ${err.message}`);
       logger.warn('[AI CLASSIFY] Falling back to mock classification');
       return this._mockClassify(englishText, imageAnalysisText);
     }
@@ -136,29 +169,29 @@ const aiProvider = {
     logger.info(`[AI TRANSLATE] Starting ${sourceLanguage} -> ${targetLanguage}`);
     logger.info(`[AI TRANSLATE] Input: "${text.substring(0, 150)}..."`);
 
-    const apiKey = groqApiKey();
+    const apiKey = geminiApiKey();
     if (!apiKey) {
       logger.warn('[AI TRANSLATE] No API key configured, returning original text');
       return text;
     }
 
-    const systemPrompt = 'You are a translator for an Indian Panchayat grievance system. Translate the following text accurately into English. Preserve all details and context. Return ONLY the translated text, no explanations, no prefixes.';
+    const systemPrompt = `You are a translator for an Indian Panchayat grievance system. Translate the following text from ${sourceLanguage} to ${targetLanguage}. Preserve all details and context. Return ONLY the translated text, no explanations, no prefixes, no quotes.`;
     const userPrompt = `Translate from ${sourceLanguage} to ${targetLanguage}: ${text}`;
 
     try {
-      logger.info('[AI TRANSLATE] Sending to Groq for translation');
-      const result = await this._callGroqText(systemPrompt, userPrompt);
+      logger.info('[AI TRANSLATE] Sending to Gemini for translation');
+      const result = await this._callGeminiText(systemPrompt, userPrompt);
       logger.info(`[AI TRANSLATE] Output: "${result.substring(0, 150)}..."`);
       return result;
     } catch (err) {
-      logger.error(`[AI TRANSLATE] Groq call failed: ${err.message}`);
+      logger.error(`[AI TRANSLATE] Gemini call failed: ${err.message}`);
       logger.warn('[AI TRANSLATE] Falling back to original text');
       return text;
     }
   },
 
   async analyzeImage(imageBase64, mimeType) {
-    const apiKey = groqApiKey();
+    const apiKey = geminiApiKey();
     if (!apiKey) {
       logger.warn('[AI VISION] No API key configured, using mock analysis');
       return this._mockImageAnalysis();
@@ -173,31 +206,27 @@ Return ONLY valid JSON with these fields:
 }`;
 
     try {
-      const url = `${GROQ_ENDPOINT}/chat/completions`;
+      const url = `${GEMINI_ENDPOINT}/models/${GEMINI_MODEL}:generateContent`;
       const body = {
-        model: GROQ_VISION_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        contents: [
           {
             role: 'user',
-            content: [
-              { type: 'text', text: 'Analyze this image and return JSON only.' },
-              { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } }
+            parts: [
+              { text: 'Analyze this image and return JSON only.' },
+              { inline_data: { mime_type: mimeType, data: imageBase64 } }
             ]
           }
         ],
-        temperature: 0.2,
-        max_tokens: 512
+        generationConfig: { temperature: 0.2, maxOutputTokens: 512 }
       };
-      const headers = { Authorization: `Bearer ${apiKey}` };
-      const res = await httpsRequest(url, 'POST', headers, body);
+      const res = await httpsRequest(url, 'POST', geminiHeaders(), body);
       if (res.status !== 200) {
-        logger.error(`[AI VISION] Groq vision call failed: ${res.status} ${JSON.stringify(res.data).substring(0, 300)}`);
+        logger.error(`[AI VISION] Gemini vision call failed: ${res.status} ${JSON.stringify(res.data).substring(0, 300)}`);
         return this._mockImageAnalysis();
       }
-      const text = res.data?.choices?.[0]?.message?.content || '{}';
-      const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-      const parsed = JSON.parse(cleaned);
+      const text = extractTextFromResponse(res.data);
+      const parsed = extractJson(text) || {};
       const result = {
         detected: parsed.detected || 'unknown',
         confidence: typeof parsed.confidence === 'number' ? Math.min(1, Math.max(0, parsed.confidence)) : 0.5,
@@ -212,29 +241,23 @@ Return ONLY valid JSON with these fields:
   },
 
   async chat(systemPrompt, userPrompt, options = {}) {
-    const apiKey = groqApiKey();
+    const apiKey = geminiApiKey();
     if (!apiKey) {
       logger.warn('[AI CHAT] No API key configured');
       const err = new Error('AI provider not configured');
       err.statusCode = 503;
       throw err;
     }
-    const url = `${GROQ_ENDPOINT}/chat/completions`;
-    const body = {
-      model: GROQ_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
+    const url = `${GEMINI_ENDPOINT}/models/${GEMINI_MODEL}:generateContent`;
+    const body = buildRequestBody(systemPrompt, userPrompt, {
       temperature: options.temperature || 0.2,
-      max_tokens: options.maxTokens || 1024
-    };
-    const headers = { Authorization: `Bearer ${groqApiKey()}` };
-    const res = await httpsRequest(url, 'POST', headers, body);
+      maxTokens: options.maxTokens || 1024
+    });
+    const res = await httpsRequest(url, 'POST', geminiHeaders(), body);
     if (res.status !== 200) {
-      throw new Error(`Groq API error (${res.status}): ${res.data?.error?.message || JSON.stringify(res.data).substring(0, 200)}`);
+      throw new Error(`Gemini API error (${res.status}): ${res.data?.error?.message || JSON.stringify(res.data).substring(0, 200)}`);
     }
-    return res.data?.choices?.[0]?.message?.content?.trim() || '';
+    return extractTextFromResponse(res.data);
   },
 
   async generateRecommendation(englishText, category, keywords = [], imageAnalysisText = '') {
@@ -262,7 +285,7 @@ Respond with JSON only.`;
     }
 
     try {
-      const result = await this._callGroqClassify(systemPrompt, userPrompt);
+      const result = await this._callGeminiClassify(systemPrompt, userPrompt);
       return {
         summary: result.summary || englishText.substring(0, 200),
         keywords: Array.isArray(result.keywords) ? result.keywords.slice(0, 5) : (keywords || []).slice(0, 5),
@@ -280,51 +303,33 @@ Respond with JSON only.`;
     }
   },
 
-  async _callGroqClassify(systemPrompt, userPrompt) {
-    const url = `${GROQ_ENDPOINT}/chat/completions`;
-    const body = {
-      model: GROQ_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.1,
-      max_tokens: 1024
-    };
-    const headers = { Authorization: `Bearer ${groqApiKey()}` };
-    const res = await httpsRequest(url, 'POST', headers, body);
+  async _callGeminiClassify(systemPrompt, userPrompt) {
+    const url = `${GEMINI_ENDPOINT}/models/${GEMINI_MODEL}:generateContent`;
+    const body = buildRequestBody(systemPrompt, userPrompt, { temperature: 0.1, maxTokens: 2048 });
+    const res = await httpsRequest(url, 'POST', geminiHeaders(), body);
     if (res.status !== 200) {
       const fullError = JSON.stringify(res.data);
-      logger.error(`[GROQ API ERROR] classify failed. Status: ${res.status}. Response: ${fullError}`);
-      throw new Error(`Groq API error (${res.status}): ${res.data?.error?.message || fullError}`);
+      logger.error(`[GEMINI API ERROR] classify failed. Status: ${res.status}. Response: ${fullError}`);
+      throw new Error(`Gemini API error (${res.status}): ${res.data?.error?.message || fullError}`);
     }
-    const text = res.data?.choices?.[0]?.message?.content || '{}';
-    const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-    try { return JSON.parse(cleaned); }
-    catch {
-      throw new Error(`Groq response parse failed: ${text.substring(0, 200)}`);
+    const text = extractTextFromResponse(res.data);
+    const parsed = extractJson(text);
+    if (!parsed) {
+      throw new Error(`Gemini response parse failed: ${text.substring(0, 200)}`);
     }
+    return parsed;
   },
 
-  async _callGroqText(systemPrompt, userPrompt) {
-    const url = `${GROQ_ENDPOINT}/chat/completions`;
-    const body = {
-      model: GROQ_MODEL,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.1,
-      max_tokens: 2048
-    };
-    const headers = { Authorization: `Bearer ${groqApiKey()}` };
-    const res = await httpsRequest(url, 'POST', headers, body);
+  async _callGeminiText(systemPrompt, userPrompt) {
+    const url = `${GEMINI_ENDPOINT}/models/${GEMINI_MODEL}:generateContent`;
+    const body = buildRequestBody(systemPrompt, userPrompt, { temperature: 0.1, maxTokens: 4096 });
+    const res = await httpsRequest(url, 'POST', geminiHeaders(), body);
     if (res.status !== 200) {
       const fullError = JSON.stringify(res.data);
-      logger.error(`[GROQ API ERROR] translate failed. Status: ${res.status}. Response: ${fullError}`);
-      throw new Error(`Groq API error (${res.status}): ${res.data?.error?.message || fullError}`);
+      logger.error(`[GEMINI API ERROR] translate failed. Status: ${res.status}. Response: ${fullError}`);
+      throw new Error(`Gemini API error (${res.status}): ${res.data?.error?.message || fullError}`);
     }
-    return res.data?.choices?.[0]?.message?.content?.trim() || userPrompt;
+    return extractTextFromResponse(res.data) || userPrompt;
   },
 
   _mockClassify(text, imageText = '') {

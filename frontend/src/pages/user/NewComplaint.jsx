@@ -5,16 +5,50 @@ import Card from '../../components/common/Card'
 import ImageUpload from '../../components/upload/ImageUpload'
 import StatusChip from '../../components/common/StatusChip'
 import { useNotification } from '../../context/NotificationContext'
-import { SPEECH_LANGUAGES } from '../../utils/constants'
+import { SPEECH_LANGUAGES, RECOMMENDED_LANGUAGES } from '../../utils/constants'
+import { getSelectedLanguage, saveSelectedLanguage, getRecentLanguages, getLanguageObject } from '../../utils/language'
 import complaintService from '../../services/complaintService'
 import { formatDate, truncateText } from '../../utils/helpers'
 
 const LANGUAGES = SPEECH_LANGUAGES
 
+function LanguageCard({ lang, selected, onSelect }) {
+  return (
+    <button
+      type="button"
+      className={`voice-lang-btn ${selected ? 'active' : ''}`}
+      onClick={() => onSelect(lang)}
+      aria-pressed={selected}
+    >
+      <span className="voice-lang-native">{lang.native}</span>
+      <span className="voice-lang-en">{lang.label}</span>
+      <span className="voice-lang-code">{lang.code}</span>
+    </button>
+  )
+}
+
+function LanguageSection({ title, subtitle, languages, selected, onSelect }) {
+  if (!languages || languages.length === 0) return null
+  return (
+    <div className="lang-section">
+      <h4 className="lang-section-title">{title}</h4>
+      {subtitle && <p className="lang-section-subtitle">{subtitle}</p>}
+      <div className="voice-lang-grid lang-grid-full">
+        {languages.map(l => (
+          <LanguageCard
+            key={l.code}
+            lang={l}
+            selected={selected === l.code}
+            onSelect={onSelect}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function getDefaultLanguage() {
-  const browserLang = navigator.language || 'en-IN'
-  const match = LANGUAGES.find(l => l.code.startsWith(browserLang.slice(0, 2)))
-  return match ? match.code : 'hi-IN'
+  return getSelectedLanguage()
 }
 
 export default function NewComplaint() {
@@ -22,6 +56,8 @@ export default function NewComplaint() {
   const { success, error: showError } = useNotification()
   const [step, setStep] = useState('language')
   const [language, setLanguage] = useState(getDefaultLanguage)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [recentLanguages, setRecentLanguages] = useState([])
   const [isRecording, setIsRecording] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [interimText, setInterimText] = useState('')
@@ -126,7 +162,7 @@ export default function NewComplaint() {
 
     try {
       const recognition = new SpeechRecognition()
-      recognition.lang = language
+      recognition.lang = getLanguageObject(language).speech
       recognition.continuous = true
       recognition.interimResults = true
 
@@ -186,6 +222,12 @@ export default function NewComplaint() {
     setSimilarComplaints([])
     setJoined(false)
     setJoinedId(null)
+  }
+
+  const handleLanguageSelect = (lang) => {
+    setLanguage(lang.code)
+    saveSelectedLanguage(lang.code)
+    setRecentLanguages(getRecentLanguages())
   }
 
   const formatTime = (s) => {
@@ -303,6 +345,20 @@ export default function NewComplaint() {
   }
 
   if (step === 'language') {
+    const query = searchQuery.trim().toLowerCase()
+    const filtered = LANGUAGES.filter(l =>
+      !query ||
+      l.label.toLowerCase().includes(query) ||
+      l.native.toLowerCase().includes(query) ||
+      l.code.toLowerCase().includes(query)
+    )
+    const recommended = LANGUAGES.filter(l => RECOMMENDED_LANGUAGES.includes(l.code))
+    const recent = recentLanguages
+      .map(code => LANGUAGES.find(l => l.code === code))
+      .filter(Boolean)
+      .filter(l => !RECOMMENDED_LANGUAGES.includes(l.code))
+    const rest = filtered.filter(l => !RECOMMENDED_LANGUAGES.includes(l.code))
+
     return (
       <div className="page-container">
         <div className="page-header">
@@ -312,24 +368,56 @@ export default function NewComplaint() {
         <Card className="voice-language-card">
           <div className="voice-language-selector">
             <label className="voice-lang-label">Select your language</label>
-            <div className="voice-lang-grid">
-              {LANGUAGES.map(l => (
-                <button
-                  key={l.code}
-                  className={`voice-lang-btn ${language === l.code ? 'active' : ''}`}
-                  onClick={() => setLanguage(l.code)}
-                >
-                  <span className="voice-lang-native">{l.native}</span>
-                  <span className="voice-lang-en">{l.label}</span>
-                </button>
-              ))}
+            <div className="lang-search-wrap">
+              <svg className="lang-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                className="lang-search-input"
+                placeholder="Search languages (e.g. Hindi, हिन्दी, hi)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
+
+            {searchQuery.trim() ? (
+              <LanguageSection
+                title={`Search results (${filtered.length})`}
+                languages={filtered}
+                selected={language}
+                onSelect={handleLanguageSelect}
+              />
+            ) : (
+              <>
+                {recent.length > 0 && (
+                  <LanguageSection
+                    title="Recently selected"
+                    languages={recent}
+                    selected={language}
+                    onSelect={handleLanguageSelect}
+                  />
+                )}
+                <LanguageSection
+                  title="Recommended"
+                  languages={recommended}
+                  selected={language}
+                  onSelect={handleLanguageSelect}
+                />
+                <LanguageSection
+                  title={`All languages (${LANGUAGES.length})`}
+                  languages={rest}
+                  selected={language}
+                  onSelect={handleLanguageSelect}
+                />
+              </>
+            )}
           </div>
           <div className="voice-language-note">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
             </svg>
-            <span>Your complaint will be automatically translated and classified by AI.</span>
+            <span>Your complaint, AI summary, chatbot replies and notifications will use your selected language automatically.</span>
           </div>
           <Button fullWidth onClick={() => setStep('record')} className="voice-start-btn">
             Start Recording

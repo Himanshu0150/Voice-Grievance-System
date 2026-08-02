@@ -5,6 +5,7 @@ const locationService = require('../services/locationService');
 const similarityService = require('../services/similarityService');
 const supportService = require('../services/supportService');
 const translationService = require('../services/translationService');
+const aiProvider = require('../services/aiProvider');
 const roleService = require('../services/roleService');
 const db = require('../config/database');
 const response = require('../utils/responseHelper');
@@ -148,13 +149,22 @@ const complaintController = {
     }
   },
 
-  getById(req, res, next) {
+  async getById(req, res, next) {
     try {
       const complaint = complaintService.getById(req.params.id);
       if (!roleService.isStaffRole(req.user.role) && complaint.userId !== req.user.id) {
         return response.forbidden(res, 'Not authorized to view this complaint');
       }
       complaintService.anonymizeForUser(complaint, req.user);
+      const langCode = translationService.getLanguageCode(req.query.lang);
+      if (langCode && langCode !== 'en' && aiProvider.isConfigured()) {
+        const [title, aiSummary] = await Promise.all([
+          translationService.translateText(complaint.title, langCode),
+          translationService.translateText(complaint.aiSummary, langCode)
+        ]);
+        if (title) complaint.title = title;
+        if (aiSummary) complaint.aiSummary = aiSummary;
+      }
       return response.success(res, complaint);
     } catch (err) {
       next(err);

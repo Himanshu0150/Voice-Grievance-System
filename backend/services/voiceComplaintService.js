@@ -96,6 +96,22 @@ const voiceComplaintService = {
       }
     }
 
+    const userLangCode = translationService.getLanguageCode(speechLanguage);
+    let localizedSummary = aiSummary;
+    let localizedSuggestedAction = aiResult.suggestedAction;
+    if (aiProvider.isConfigured() && userLangCode && userLangCode !== 'en') {
+      try {
+        const [locSummary, locAction] = await Promise.all([
+          translationService.translateText(aiSummary, userLangCode),
+          translationService.translateText(aiResult.suggestedAction, userLangCode)
+        ]);
+        if (locSummary) localizedSummary = locSummary;
+        if (locAction) localizedSuggestedAction = locAction;
+      } catch (err) {
+        logger.warn(`[LOCALIZE] AI summary translation skipped: ${err.message}`);
+      }
+    }
+
     const departmentId = resolveDepartmentId(aiResult.department) || data.departmentId || null;
     const priority = aiResult.priority || 'Medium';
     const etaDays = estimateService.estimateComplaint({ category: aiResult.category }, priority);
@@ -157,10 +173,24 @@ const voiceComplaintService = {
       }
     }
 
+    let notifTitle = 'Complaint Submitted Successfully';
+    let notifMessage = `Your complaint has been registered. Reference: ${complaint.complaintId}. Category: ${aiResult.category}. Priority: ${aiResult.priority}. Estimated resolution: ${etaDays} days.`;
+    if (aiProvider.isConfigured() && userLangCode && userLangCode !== 'en') {
+      try {
+        const [locTitle, locMessage] = await Promise.all([
+          translationService.translateText(notifTitle, userLangCode),
+          translationService.translateText(notifMessage, userLangCode)
+        ]);
+        if (locTitle) notifTitle = locTitle;
+        if (locMessage) notifMessage = locMessage;
+      } catch (err) {
+        logger.warn(`[LOCALIZE] Notification translation skipped: ${err.message}`);
+      }
+    }
     Notification.create({
       userId,
-      title: 'Complaint Submitted Successfully',
-      message: `Your complaint has been registered. Reference: ${complaint.complaintId}. Category: ${aiResult.category}. Priority: ${aiResult.priority}. Estimated resolution: ${etaDays} days.`,
+      title: notifTitle,
+      message: notifMessage,
       type: 'info'
     });
 
@@ -174,13 +204,14 @@ const voiceComplaintService = {
         originalText,
         englishTranslation,
         translationAvailable,
-        summary: aiSummary,
+        summary: localizedSummary || aiSummary,
+        englishSummary: aiSummary,
         category: aiResult.category,
         department: aiResult.department,
         priority,
         confidence: aiResult.confidence,
         keywords: aiResult.keywords,
-        suggestedAction: aiResult.suggestedAction,
+        suggestedAction: localizedSuggestedAction || aiResult.suggestedAction,
         officerRecommendation,
         needsManualReview: aiResult.needsManualReview,
         estimatedResolutionDays: etaDays,

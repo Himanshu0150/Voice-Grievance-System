@@ -20,11 +20,12 @@ Set the following environment variables in `backend/.env`:
 # Choose provider: 'gemini' or 'openai'
 AI_PROVIDER=gemini
 
-# API key for the chosen provider
-AI_API_KEY=your_api_key_here
+# Google Gemini API key (get from https://aistudio.google.com/apikey)
+GEMINI_API_KEY=your_gemini_api_key
 
 # Gemini model name (only when AI_PROVIDER=gemini)
-AI_GEMINI_MODEL=gemini-2.0-flash
+# Note: gemini-2.5-flash is no longer available to new keys; use gemini-flash-latest
+GEMINI_MODEL=gemini-flash-latest
 
 # OpenAI model name (only when AI_PROVIDER=openai)
 AI_OPENAI_MODEL=gpt-4o
@@ -35,7 +36,7 @@ AI_OPENAI_ENDPOINT=https://api.openai.com/v1
 
 ## Development Mode (No API Key)
 
-When `AI_API_KEY` is empty, the system runs in **development mode**:
+When `GEMINI_API_KEY` is empty, the system runs in **development mode**:
 - Uses keyword-based classification (not semantic AI)
 - Returns the original text without translation
 - Image analysis returns "not configured"
@@ -48,14 +49,13 @@ This is suitable for testing the UI flow without AI dependencies.
 
 ### Option 1: Google Gemini (Recommended)
 
-1. Go to https://ai.google.dev/
-2. Click "Get API Key"
-3. Create a new API key (free tier available)
-4. Set in `.env`:
+1. Go to https://aistudio.google.com/apikey
+2. Click "Create API key" (free tier available)
+3. Set in `.env`:
    ```env
    AI_PROVIDER=gemini
-   AI_API_KEY=your_gemini_api_key
-   AI_GEMINI_MODEL=gemini-2.0-flash
+   GEMINI_API_KEY=your_gemini_api_key
+   GEMINI_MODEL=gemini-flash-latest
    ```
 
 ### Option 2: OpenAI
@@ -65,7 +65,7 @@ This is suitable for testing the UI flow without AI dependencies.
 3. Set in `.env`:
    ```env
    AI_PROVIDER=openai
-   AI_API_KEY=your_openai_api_key
+   AI_OPENAI_API_KEY=your_openai_api_key
    AI_OPENAI_MODEL=gpt-4o
    ```
 
@@ -73,7 +73,7 @@ This is suitable for testing the UI flow without AI dependencies.
 
 ```env
 AI_PROVIDER=openai
-AI_API_KEY=your_azure_key
+AI_OPENAI_API_KEY=your_azure_key
 AI_OPENAI_MODEL=gpt-4o
 AI_OPENAI_ENDPOINT=https://your-resource.openai.azure.com/v1
 ```
@@ -116,4 +116,4 @@ Create Complaint with AI Metadata
 
 ## Switching Between Providers
 
-Simply change `AI_PROVIDER` and `AI_API_KEY` in `.env`. No code changes needed. The `aiProvider.js` service handles all provider-specific API calls through a unified interface.
+Simply change `AI_PROVIDER`, `GEMINI_API_KEY` (Gemini) or `AI_OPENAI_API_KEY` (OpenAI) in `.env`. No code changes needed. The `aiProvider.js` service handles all provider-specific API calls through a unified interface.

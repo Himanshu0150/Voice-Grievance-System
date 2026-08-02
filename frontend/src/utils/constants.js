@@ -23,17 +23,32 @@ export const CATEGORY_DEPARTMENT_MAP = {
 }
 
 export const SPEECH_LANGUAGES = [
-  { code: 'hi-IN', label: 'Hindi', native: 'हिन्दी' },
-  { code: 'mr-IN', label: 'Marathi', native: 'मराठी' },
-  { code: 'gu-IN', label: 'Gujarati', native: 'ગુજરાતી' },
-  { code: 'ta-IN', label: 'Tamil', native: 'தமிழ்' },
-  { code: 'te-IN', label: 'Telugu', native: 'తెలుగు' },
-  { code: 'kn-IN', label: 'Kannada', native: 'ಕನ್ನಡ' },
-  { code: 'ml-IN', label: 'Malayalam', native: 'മലയാളം' },
-  { code: 'bn-IN', label: 'Bengali', native: 'বাংলা' },
-  { code: 'pa-IN', label: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
-  { code: 'en-IN', label: 'English', native: 'English' }
+  { code: 'en', label: 'English', native: 'English', speech: 'en-IN' },
+  { code: 'hi', label: 'Hindi', native: 'हिन्दी', speech: 'hi-IN' },
+  { code: 'mr', label: 'Marathi', native: 'मराठी', speech: 'mr-IN' },
+  { code: 'gu', label: 'Gujarati', native: 'ગુજરાતી', speech: 'gu-IN' },
+  { code: 'pa', label: 'Punjabi', native: 'ਪੰਜਾਬੀ', speech: 'pa-IN' },
+  { code: 'bn', label: 'Bengali', native: 'বাংলা', speech: 'bn-IN' },
+  { code: 'ta', label: 'Tamil', native: 'தமிழ்', speech: 'ta-IN' },
+  { code: 'te', label: 'Telugu', native: 'తెలుగు', speech: 'te-IN' },
+  { code: 'kn', label: 'Kannada', native: 'ಕನ್ನಡ', speech: 'kn-IN' },
+  { code: 'ml', label: 'Malayalam', native: 'മലയാളം', speech: 'ml-IN' },
+  { code: 'or', label: 'Odia', native: 'ଓଡ଼ିଆ', speech: 'or-IN' },
+  { code: 'as', label: 'Assamese', native: 'অসমীয়া', speech: 'as-IN' },
+  { code: 'ur', label: 'Urdu', native: 'اردو', speech: 'ur-IN' },
+  { code: 'sa', label: 'Sanskrit', native: 'संस्कृतम्', speech: 'sa-IN' },
+  { code: 'kok', label: 'Konkani', native: 'कोंकणी', speech: 'kok-IN' },
+  { code: 'ne', label: 'Nepali', native: 'नेपाली', speech: 'ne-IN' },
+  { code: 'mai', label: 'Maithili', native: 'मैथिली', speech: 'mai-IN' },
+  { code: 'doi', label: 'Dogri', native: 'डोगरी', speech: 'doi-IN' },
+  { code: 'brx', label: 'Bodo', native: 'बर', speech: 'brx-IN' },
+  { code: 'sat', label: 'Santali', native: 'ᱥᱟᱱᱛᱟᱲᱤ', speech: 'sat-IN' },
+  { code: 'ks', label: 'Kashmiri', native: 'कॉशुर', speech: 'ks-IN' },
+  { code: 'mni', label: 'Manipuri (Meitei)', native: 'ꯃꯤꯇꯩꯂꯣꯟ', speech: 'mni-IN' },
+  { code: 'sd', label: 'Sindhi', native: 'سنڌي', speech: 'sd-IN' }
 ]
+
+export const RECOMMENDED_LANGUAGES = ['en', 'hi', 'mr']
 
 export const COMPLAINT_STATUS = {
   PENDING: 'Pending',

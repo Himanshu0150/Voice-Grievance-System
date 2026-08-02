@@ -2,9 +2,9 @@ const notificationService = require('../services/notificationService');
 const response = require('../utils/responseHelper');
 
 const notificationController = {
-  getAll(req, res, next) {
+  async getAll(req, res, next) {
     try {
-      const result = notificationService.getByUser(req.user.id, req.query);
+      const result = await notificationService.getByUser(req.user.id, req.query);
       return response.success(res, result);
     } catch (err) {
       next(err);

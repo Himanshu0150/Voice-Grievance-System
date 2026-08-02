@@ -1,4 +1,5 @@
 import api from './api'
+import { getSelectedLanguage } from '../utils/language'
 
 const complaintService = {
   getAll: async (params = {}) => {
@@ -11,7 +12,7 @@ const complaintService = {
   },
 
   getById: async (id) => {
-    const res = await api.get(`/complaints/${id}`)
+    const res = await api.get(`/complaints/${id}?lang=${encodeURIComponent(getSelectedLanguage())}`)
     return res.data
   },
 

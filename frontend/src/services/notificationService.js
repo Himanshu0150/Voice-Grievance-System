@@ -1,4 +1,5 @@
 import api from './api'
+import { getSelectedLanguage } from '../utils/language'
 
 const notificationService = {
   getAll: async (params = {}) => {
@@ -6,6 +7,7 @@ const notificationService = {
     Object.entries(params).forEach(([key, value]) => {
       if (value) query.append(key, value)
     })
+    query.append('lang', getSelectedLanguage())
     const res = await api.get(`/notifications?${query.toString()}`)
     return res.data
   },
