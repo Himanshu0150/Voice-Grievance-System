@@ -2,13 +2,12 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import Card from '../../components/common/Card'
 import StatusChip from '../../components/common/StatusChip'
-import EmotionBadge from '../../components/common/EmotionBadge'
 import ImageViewer from '../../components/common/ImageViewer'
 import Loader from '../../components/common/Loader'
 import ErrorState from '../../components/common/ErrorState'
 import Button from '../../components/common/Button'
 import { formatDateTime } from '../../utils/helpers'
-import { PRIORITY_COLORS, EMOTION_META } from '../../utils/constants'
+import { PRIORITY_COLORS } from '../../utils/constants'
 import { useAuth } from '../../context/AuthContext'
 import { useNotification } from '../../context/NotificationContext'
 import complaintService from '../../services/complaintService'
@@ -106,11 +105,6 @@ export default function UserComplaintDetails() {
                   Priority: <strong style={{ color: PRIORITY_COLORS[complaint.priority] || undefined }}>{complaint.priority}</strong>
                 </span>
               )}
-              {complaint.emotion && (
-                <span>
-                  Emotion: <EmotionBadge emotion={complaint.emotion} confidence={complaint.emotionConfidence} />
-                </span>
-              )}
               <span>Submitted: <strong>{formatDateTime(complaint.createdAt)}</strong></span>
             </div>
             <div className="detail-description">
@@ -184,21 +178,6 @@ export default function UserComplaintDetails() {
                   <div className="ai-analysis-item">
                     <label>Confidence</label>
                     <span className="ai-value">{(complaint.aiConfidence * 100).toFixed(0)}%</span>
-                  </div>
-                )}
-                {complaint.emotion && (
-                  <div className="ai-analysis-item">
-                    <label>Detected Emotion</label>
-                    <span className="ai-value">
-                      {EMOTION_META[complaint.emotion]?.icon || ''} {complaint.emotion}
-                      {complaint.emotionConfidence != null && ` (${Math.round(complaint.emotionConfidence * 100)}% confidence)`}
-                    </span>
-                  </div>
-                )}
-                {complaint.emotionReason && (
-                  <div className="ai-analysis-item full-width">
-                    <label>Reason</label>
-                    <span className="ai-value">{complaint.emotionReason}</span>
                   </div>
                 )}
                 {complaint.originalLanguage && (

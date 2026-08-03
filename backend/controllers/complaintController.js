@@ -60,7 +60,7 @@ const complaintController = {
 
   async checkSimilarity(req, res, next) {
     try {
-      const { text, speechLanguage } = req.body;
+      const { text, speechLanguage, includeSuggestions } = req.body;
       if (!text || !text.trim()) {
         return response.badRequest(res, 'Complaint text is required');
       }
@@ -77,10 +77,21 @@ const complaintController = {
       }
 
       const result = await similarityService.findSimilar(englishText);
+
+      let suggestions = null;
+      if (includeSuggestions && aiProvider.isConfigured()) {
+        try {
+          suggestions = await aiProvider.generateSolutionSuggestions(englishText);
+        } catch (err) {
+          logger.warn(`[AI SUGGEST] Skipped: ${err.message}`);
+        }
+      }
+
       return response.success(res, {
         ...result,
         translatedText: englishText,
-        translationAvailable
+        translationAvailable,
+        suggestions
       }, 'Similarity check complete');
     } catch (err) {
       next(err);

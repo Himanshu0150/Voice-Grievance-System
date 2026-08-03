@@ -31,8 +31,12 @@ const complaintService = {
     return res.data
   },
 
-  checkSimilarity: async (text, speechLanguage) => {
-    const res = await api.post('/complaints/similarity', { text, speechLanguage })
+  checkSimilarity: async (text, speechLanguage, options = {}) => {
+    const res = await api.post('/complaints/similarity', {
+      text,
+      speechLanguage,
+      includeSuggestions: options.includeSuggestions || false
+    })
     return res.data
   },
 

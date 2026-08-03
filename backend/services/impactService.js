@@ -1,5 +1,4 @@
 const db = require('../config/database');
-const { emotionScore } = require('./emotionService');
 
 const PRIORITY_WEIGHTS = { 'Critical': 35, 'High': 28, 'Medium': 18, 'Low': 10 };
 
@@ -37,9 +36,6 @@ const impactService = {
 
     score += Math.min(10, days * 0.5);
 
-    const emotion = emotionScore(complaint.emotion);
-    score += emotion;
-
     const location = complaint.latitude && complaint.longitude ? 2 : 0;
     score += location;
 
@@ -55,7 +51,6 @@ const impactService = {
         frequency: Math.min(15, frequency * 2),
         escalation: Math.min(15, escalationLevel * 5),
         age: Math.min(10, days * 0.5),
-        emotion,
         location
       }
     };

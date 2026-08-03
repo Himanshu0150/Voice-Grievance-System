@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import Card from '../common/Card'
 import StatusChip from '../common/StatusChip'
-import EmotionBadge from '../common/EmotionBadge'
 import { formatDate, truncateText } from '../../utils/helpers'
 import { PRIORITY_COLORS } from '../../utils/constants'
 
@@ -33,7 +32,6 @@ export default function ComplaintCard({ complaint, isAdmin = false }) {
               {complaint.priority}
             </span>
           )}
-          <EmotionBadge emotion={complaint.emotion} confidence={complaint.emotionConfidence} />
           <StatusChip status={complaint.status} />
         </div>
       </div>

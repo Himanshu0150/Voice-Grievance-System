@@ -8,7 +8,6 @@ const Department = require('../models/Department');
 const estimateService = require('./estimateService');
 const timelineService = require('./timelineService');
 const imageHashService = require('./imageHashService');
-const emotionService = require('./emotionService');
 const logger = require('../utils/logger');
 
 function resolveDepartmentId(departmentName) {
@@ -70,16 +69,6 @@ const voiceComplaintService = {
       imageAnalysis.combinedText
     );
 
-    let emotionResult = { emotion: 'Neutral', confidence: 0.5, reason: null };
-    if (aiProvider.isConfigured()) {
-      try {
-        emotionResult = await aiProvider.detectEmotion(englishTranslation);
-        logger.info(`[EMOTION] Detected: ${emotionResult.emotion} (${(emotionResult.confidence * 100).toFixed(0)}% confidence)`);
-      } catch (err) {
-        logger.warn(`[EMOTION] Detection failed, using neutral fallback: ${err.message}`);
-      }
-    }
-
     if (imageAnalysis.imageCategory && aiResult.category === 'Others') {
       aiResult.category = imageAnalysis.imageCategory;
       aiResult.department = aiClassificationService.getValidCategories().includes(aiResult.category)
@@ -110,24 +99,21 @@ const voiceComplaintService = {
     const userLangCode = translationService.getLanguageCode(speechLanguage);
     let localizedSummary = aiSummary;
     let localizedSuggestedAction = aiResult.suggestedAction;
-    let localizedEmotionReason = emotionResult.reason || null;
     if (aiProvider.isConfigured() && userLangCode && userLangCode !== 'en') {
       try {
-        const [locSummary, locAction, locEmotionReason] = await Promise.all([
+        const [locSummary, locAction] = await Promise.all([
           translationService.translateText(aiSummary, userLangCode),
-          translationService.translateText(aiResult.suggestedAction, userLangCode),
-          emotionResult.reason ? translationService.translateText(emotionResult.reason, userLangCode) : Promise.resolve(null)
+          translationService.translateText(aiResult.suggestedAction, userLangCode)
         ]);
         if (locSummary) localizedSummary = locSummary;
         if (locAction) localizedSuggestedAction = locAction;
-        if (locEmotionReason) localizedEmotionReason = locEmotionReason;
       } catch (err) {
         logger.warn(`[LOCALIZE] AI summary translation skipped: ${err.message}`);
       }
     }
 
     const departmentId = resolveDepartmentId(aiResult.department) || data.departmentId || null;
-    const priority = emotionService.applyEmotionPriority(aiResult.priority || 'Medium', emotionResult.emotion);
+    const priority = aiResult.priority || 'Medium';
     const etaDays = estimateService.estimateComplaint({ category: aiResult.category }, priority);
 
     const complaintPayload = {
@@ -156,10 +142,7 @@ const voiceComplaintService = {
       estimatedResolutionDays: etaDays,
       prioritySource: 'ai',
       isAnonymous: toBool(isAnonymous) ? 1 : 0,
-      similarComplaintId: data.similarComplaintId || null,
-      emotion: emotionResult.emotion,
-      emotionConfidence: emotionResult.confidence,
-      emotionReason: emotionResult.reason || null
+      similarComplaintId: data.similarComplaintId || null
     };
 
     const complaint = complaintService.createVoiceComplaint(complaintPayload, files);
@@ -232,9 +215,6 @@ const voiceComplaintService = {
         officerRecommendation,
         needsManualReview: aiResult.needsManualReview,
         estimatedResolutionDays: etaDays,
-        emotion: emotionResult.emotion,
-        emotionConfidence: emotionResult.confidence,
-        emotionReason: localizedEmotionReason || emotionResult.reason || null,
         imageAnalysis: imageAnalysis.results
       }
     };

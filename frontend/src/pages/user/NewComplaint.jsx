@@ -66,13 +66,14 @@ export default function NewComplaint() {
   const [address, setAddress] = useState('')
   const [location, setLocation] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [isSupported, setIsSupported] = useState(true)
   const [hasRecording, setHasRecording] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [aiResult, setAiResult] = useState(null)
   const [isAnonymous, setIsAnonymous] = useState(false)
   const [similarComplaints, setSimilarComplaints] = useState([])
   const [checkingSimilarity, setCheckingSimilarity] = useState(false)
+  const [aiSuggestions, setAiSuggestions] = useState(null)
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
   const [joined, setJoined] = useState(false)
   const [joinedId, setJoinedId] = useState(null)
 
@@ -81,10 +82,6 @@ export default function NewComplaint() {
   const similarityTimeoutRef = useRef(null)
 
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-
-  useEffect(() => {
-    if (!SpeechRecognition) setIsSupported(false)
-  }, [SpeechRecognition])
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -101,23 +98,29 @@ export default function NewComplaint() {
     }
     if (!transcript.trim() || transcript.trim().length < 25) {
       setSimilarComplaints([])
+      setAiSuggestions(null)
       return
     }
     setCheckingSimilarity(true)
+    const includeSuggestions = !isRecording
+    if (includeSuggestions) setSuggestionsLoading(true)
     similarityTimeoutRef.current = setTimeout(async () => {
       try {
-        const res = await complaintService.checkSimilarity(transcript, language)
+        const res = await complaintService.checkSimilarity(transcript, language, { includeSuggestions })
         setSimilarComplaints(res?.similar || [])
+        if (includeSuggestions) setAiSuggestions(res?.suggestions || null)
       } catch {
         setSimilarComplaints([])
+        setAiSuggestions(null)
       } finally {
         setCheckingSimilarity(false)
+        if (includeSuggestions) setSuggestionsLoading(false)
       }
     }, 700)
     return () => {
       if (similarityTimeoutRef.current) clearTimeout(similarityTimeoutRef.current)
     }
-  }, [transcript, language])
+  }, [transcript, language, isRecording])
 
   const handleJoin = async (complaint) => {
     setLoading(true)
@@ -153,6 +156,7 @@ export default function NewComplaint() {
     setInterimText('')
     setHasRecording(false)
     setAiResult(null)
+    setAiSuggestions(null)
     setRecordingTime(0)
 
     if (!SpeechRecognition) {
@@ -208,6 +212,7 @@ export default function NewComplaint() {
     setInterimText('')
     setHasRecording(false)
     setAiResult(null)
+    setAiSuggestions(null)
     setSimilarComplaints([])
   }
 
@@ -218,6 +223,7 @@ export default function NewComplaint() {
     setHasRecording(false)
     setImages([])
     setAiResult(null)
+    setAiSuggestions(null)
     setIsAnonymous(false)
     setSimilarComplaints([])
     setJoined(false)
@@ -297,21 +303,6 @@ export default function NewComplaint() {
               <label>Confidence</label>
               <span className="voice-result-value">{(aiResult.confidence * 100).toFixed(0)}%</span>
             </div>
-            {aiResult.emotion && (
-              <div className="voice-result-item">
-                <label>Detected Emotion</label>
-                <span className="voice-result-value highlight">
-                  {aiResult.emotion}
-                  {aiResult.emotionConfidence != null && ` (${Math.round(aiResult.emotionConfidence * 100)}%)`}
-                </span>
-              </div>
-            )}
-            {aiResult.emotionReason && (
-              <div className="voice-result-item full-width">
-                <label>Emotion Reason</label>
-                <span className="voice-result-value">{aiResult.emotionReason}</span>
-              </div>
-            )}
             {aiResult.needsManualReview && (
               <div className="voice-result-item full-width">
                 <span className="voice-result-warning">Needs Manual Review - AI confidence was low</span>
@@ -349,7 +340,65 @@ export default function NewComplaint() {
             </div>
           )}
         </Card>
-        <div className="voice-submit-actions">
+      {suggestionsLoading && !aiSuggestions && (
+        <div className="ai-suggestions-loading">✨ Generating AI suggestions...</div>
+      )}
+
+      {aiSuggestions && (
+        <Card className="ai-suggestions-card">
+          <div className="ai-suggestions-header">
+            <span className="ai-suggestions-icon">✨</span>
+            <h3>AI Suggestions</h3>
+          </div>
+          {aiSuggestions.summary && (
+            <p className="ai-suggestions-summary">{aiSuggestions.summary}</p>
+          )}
+          {aiSuggestions.suggestions?.length > 0 && (
+            <div className="ai-suggestions-section">
+              <label>Suggested Actions</label>
+              <ul className="ai-suggestions-list">
+                {aiSuggestions.suggestions.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {aiSuggestions.safetyAdvice && (
+            <div className="ai-suggestions-section ai-suggestions-safety">
+              <label>Safety Advice</label>
+              <p>{aiSuggestions.safetyAdvice}</p>
+            </div>
+          )}
+          {aiSuggestions.recommendedEvidence?.length > 0 && (
+            <div className="ai-suggestions-section">
+              <label>Recommended Evidence / Photos</label>
+              <ul className="ai-suggestions-list">
+                {aiSuggestions.recommendedEvidence.map((e, i) => (
+                  <li key={i}>{e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {aiSuggestions.recommendedDepartment && (
+            <div className="ai-suggestions-section">
+              <label>Department Recommendation</label>
+              <p className="ai-suggestions-dept">{aiSuggestions.recommendedDepartment}</p>
+            </div>
+          )}
+          {aiSuggestions.confidence != null && (
+            <div className="ai-suggestions-confidence">
+              <span>AI Confidence</span>
+              <strong>{Math.round(aiSuggestions.confidence * 100)}%</strong>
+            </div>
+          )}
+          <div className="ai-suggestions-actions">
+            <Button variant="secondary" onClick={() => setAiSuggestions(null)}>Edit Complaint</Button>
+            <Button onClick={handleSubmit} loading={loading}>Submit Complaint</Button>
+          </div>
+        </Card>
+      )}
+
+      <div className="voice-submit-actions">
           <Button variant="secondary" onClick={() => navigate('/complaints')}>View My Complaints</Button>
           <Button onClick={handleReset}>
             Submit Another

@@ -4,24 +4,6 @@ export const COMPLAINT_CATEGORIES = [
   'Public Property', 'Government Office', 'Traffic', 'Environment', 'Others'
 ]
 
-export const CATEGORY_DEPARTMENT_MAP = {
-  'Road': 1,
-  'Water Supply': 1,
-  'Drainage': 7,
-  'Street Light': 3,
-  'Electricity': 3,
-  'Garbage': 7,
-  'Sanitation': 7,
-  'Health': 4,
-  'Education': 5,
-  'Agriculture': 6,
-  'Public Property': 8,
-  'Government Office': 8,
-  'Traffic': 8,
-  'Environment': 8,
-  'Others': 8
-}
-
 export const SPEECH_LANGUAGES = [
   { code: 'en', label: 'English', native: 'English', speech: 'en-IN' },
   { code: 'hi', label: 'Hindi', native: 'हिन्दी', speech: 'hi-IN' },
@@ -50,17 +32,6 @@ export const SPEECH_LANGUAGES = [
 
 export const RECOMMENDED_LANGUAGES = ['en', 'hi', 'mr']
 
-export const COMPLAINT_STATUS = {
-  PENDING: 'Pending',
-  ASSIGNED: 'Assigned',
-  ACCEPTED: 'Accepted',
-  WORK_STARTED: 'Work Started',
-  INSPECTION: 'Inspection',
-  IN_PROGRESS: 'In Progress',
-  RESOLVED: 'Resolved',
-  REJECTED: 'Rejected'
-}
-
 export const STATUS_COLORS = {
   'Pending': '#FFC107',
   'Assigned': '#6F42C1',
@@ -83,38 +54,11 @@ export const STATUS_LABELS = {
   'Rejected': 'Rejected'
 }
 
-export const TIMELINE_EVENTS = [
-  { key: 'Submitted', label: 'Complaint Submitted' },
-  { key: 'AI Processed', label: 'AI Processed' },
-  { key: 'Assigned', label: 'Assigned' },
-  { key: 'Accepted', label: 'Accepted' },
-  { key: 'Work Started', label: 'Work Started' },
-  { key: 'Inspection', label: 'Inspection' },
-  { key: 'In Progress', label: 'In Progress' },
-  { key: 'Completed', label: 'Completed' },
-  { key: 'Rejected', label: 'Rejected' },
-  { key: 'Escalated', label: 'Escalated' }
-]
-
-export const PRIORITY_LEVELS = ['Critical', 'High', 'Medium', 'Low']
-
 export const PRIORITY_COLORS = {
   'Critical': '#DC3545',
   'High': '#FD7E14',
   'Medium': '#FFC107',
   'Low': '#6B7280'
-}
-
-export const EMOTION_LEVELS = ['Calm', 'Neutral', 'Concerned', 'Angry', 'Fear', 'Distress', 'Panic']
-
-export const EMOTION_META = {
-  'Calm': { icon: '😌', color: '#2E9E6B', label: 'Calm' },
-  'Neutral': { icon: '😐', color: '#6B7280', label: 'Neutral' },
-  'Concerned': { icon: '🙁', color: '#F59E0B', label: 'Concerned' },
-  'Angry': { icon: '😠', color: '#F97316', label: 'Angry' },
-  'Fear': { icon: '😨', color: '#C026D3', label: 'Fear' },
-  'Distress': { icon: '😫', color: '#DC3545', label: 'Distress' },
-  'Panic': { icon: '🚨', color: '#B91C1C', label: 'Panic' }
 }
 
 export const ROLE_LABELS = {
@@ -124,5 +68,3 @@ export const ROLE_LABELS = {
   officer: 'Officer',
   user: 'Citizen'
 }
-
-export const ALL_ROLES = Object.keys(ROLE_LABELS)

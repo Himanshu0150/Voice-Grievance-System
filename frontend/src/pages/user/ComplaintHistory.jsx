@@ -4,9 +4,7 @@ import SearchBar from '../../components/common/SearchBar'
 import Select from '../../components/common/Select'
 import DataTable from '../../components/tables/DataTable'
 import StatusChip from '../../components/common/StatusChip'
-import EmotionBadge from '../../components/common/EmotionBadge'
 import Pagination from '../../components/common/Pagination'
-import EmptyState from '../../components/common/EmptyState'
 import ErrorState from '../../components/common/ErrorState'
 import { formatDate } from '../../utils/helpers'
 import { COMPLAINT_CATEGORIES } from '../../utils/constants'
@@ -92,11 +90,6 @@ export default function ComplaintHistory() {
       header: 'Priority',
       accessor: 'priority',
       render: (row) => <span className={`priority-badge priority-${row.priority?.toLowerCase()}`}>{row.priority || 'Medium'}</span>
-    },
-    {
-      header: 'Emotion',
-      accessor: 'emotion',
-      render: (row) => <EmotionBadge emotion={row.emotion} confidence={row.emotionConfidence} />
     },
     {
       header: 'Supporters',

@@ -7,8 +7,6 @@ const VALID_CATEGORIES = [
   'Public Property', 'Government Office', 'Traffic', 'Environment', 'Others'
 ];
 
-const EMOTION_VALUES = ['Calm', 'Neutral', 'Concerned', 'Angry', 'Fear', 'Distress', 'Panic'];
-
 const GEMINI_ENDPOINT = process.env.GEMINI_ENDPOINT || 'https://generativelanguage.googleapis.com/v1beta';
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
 
@@ -249,37 +247,55 @@ Return ONLY valid JSON with these fields:
     }
   },
 
-  async detectEmotion(text) {
+  async generateSolutionSuggestions(text) {
     const apiKey = geminiApiKey();
     if (!apiKey) {
-      logger.warn('[AI EMOTION] No API key configured, using neutral fallback');
-      return { emotion: 'Neutral', confidence: 0.5, reason: 'AI provider not configured' };
+      logger.warn('[AI SUGGEST] No API key configured, skipping suggestions');
+      return null;
     }
-    if (!text || !text.trim()) {
-      return { emotion: 'Neutral', confidence: 0.5, reason: 'No complaint text available' };
-    }
+    if (!text || !text.trim()) return null;
 
-    const systemPrompt = `You are an emotion detection AI for an Indian Panchayat grievance system.
-Analyze the emotional tone of the citizen's complaint and return ONLY valid JSON:
+    const systemPrompt = `You are an AI assistant for an Indian Panchayat (village council) grievance system.
+A citizen wants to report the following complaint. Before they submit it, help them with practical guidance.
+Return ONLY valid JSON with exactly this schema:
 {
-  "emotion": "One of: Calm, Neutral, Concerned, Angry, Fear, Distress, Panic",
-  "confidence": 0.0-1.0,
-  "reason": "One-line explanation of why this emotion was detected"
-}`;
+  "summary": "One or two sentence neutral summary of the complaint",
+  "suggestions": ["3 to 4 short, practical, actionable suggestions the citizen can try to resolve or reduce the issue", "..."],
+  "safetyAdvice": "Safety guidance relevant to the complaint, or an empty string if not applicable",
+  "recommendedEvidence": ["2 to 3 types of evidence/photos that would strengthen the complaint", "..."],
+  "recommendedDepartment": "The government department most suited to handle this complaint (e.g. Panchayat Office, Public Works Department, Water Supply Department, Health Department)",
+  "confidence": 0.94
+}
+Rules:
+- Keep every suggestion concise, specific and grounded in the complaint.
+- Do not add a closing message, markdown or any text outside the JSON.`;
+
     const userPrompt = `Complaint text: ${text}\nRespond with JSON only.`;
 
     try {
-      logger.info('[AI EMOTION] Sending to Gemini for emotion detection');
+      logger.info('[AI SUGGEST] Sending to Gemini for solution suggestions');
       const result = await this._callGeminiClassify(systemPrompt, userPrompt, { maxTokens: 2048 });
-      const emotion = EMOTION_VALUES.includes(result.emotion) ? result.emotion : 'Neutral';
+      const suggestions = Array.isArray(result.suggestions)
+        ? result.suggestions.map(s => String(s).trim()).filter(Boolean).slice(0, 5)
+        : [];
+      const evidence = Array.isArray(result.recommendedEvidence)
+        ? result.recommendedEvidence.map(s => String(s).trim()).filter(Boolean).slice(0, 4)
+        : [];
+      if (!result.summary && suggestions.length === 0) {
+        logger.warn('[AI SUGGEST] Empty response, skipping suggestions');
+        return null;
+      }
       return {
-        emotion,
-        confidence: typeof result.confidence === 'number' ? Math.min(1, Math.max(0, result.confidence)) : 0.5,
-        reason: result.reason || ''
+        summary: result.summary ? String(result.summary).trim() : '',
+        suggestions,
+        safetyAdvice: result.safetyAdvice ? String(result.safetyAdvice).trim() : '',
+        recommendedEvidence: evidence,
+        recommendedDepartment: result.recommendedDepartment ? String(result.recommendedDepartment).trim() : '',
+        confidence: typeof result.confidence === 'number' ? Math.min(1, Math.max(0, result.confidence)) : null
       };
     } catch (err) {
-      logger.error(`[AI EMOTION] Gemini call failed: ${err.message}`);
-      return { emotion: 'Neutral', confidence: 0.5, reason: 'Emotion detection failed' };
+      logger.error(`[AI SUGGEST] Gemini call failed: ${err.message}`);
+      return null;
     }
   },
 

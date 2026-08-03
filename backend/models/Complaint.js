@@ -23,9 +23,8 @@ const Complaint = {
       originalLanguage, originalText, englishTranslation, aiSummary,
       detectedCategory, aiConfidence, aiKeywords, aiProcessed,
       needsManualReview, suggestedAction, officerRecommendation,
-      estimatedResolutionDays, impactScore, prioritySource, isAnonymous, similarComplaintId,
-      emotion, emotionConfidence, emotionReason
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      estimatedResolutionDays, impactScore, prioritySource, isAnonymous, similarComplaintId
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [complaintId, data.userId, data.title, data.category, data.departmentId || null, data.description || null,
        data.voiceTranscript || null, data.speechLanguage || 'hi-IN', data.audioFile || null,
        data.latitude || null, data.longitude || null, data.address || null, data.priority || 'Medium',
@@ -34,8 +33,7 @@ const Complaint = {
        data.aiKeywords || null, data.aiProcessed || 0, data.needsManualReview || 0,
        data.suggestedAction || null, data.officerRecommendation || null,
        data.estimatedResolutionDays || null, data.impactScore || null, data.prioritySource || 'ai',
-       data.isAnonymous ? 1 : 0, data.similarComplaintId || null,
-       data.emotion || null, data.emotionConfidence || null, data.emotionReason || null]
+       data.isAnonymous ? 1 : 0, data.similarComplaintId || null]
     );
     const id = db.lastInsertId();
     db.saveDatabase();

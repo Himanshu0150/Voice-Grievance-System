@@ -6,19 +6,9 @@ import LineChart from '../../components/charts/LineChart'
 import Loader from '../../components/common/Loader'
 import ErrorState from '../../components/common/ErrorState'
 import adminService from '../../services/adminService'
-import { EMOTION_META } from '../../utils/constants'
 
 const STATUS_COLORS = { Pending: '#FFC107', 'In Progress': '#0B5ED7', Resolved: '#198754', Rejected: '#DC3545' }
 const PRIORITY_COLORS = { Critical: '#DC3545', High: '#FD7E14', Medium: '#FFC107', Low: '#6B7280' }
-const EMOTION_COLORS = {
-  Calm: EMOTION_META.Calm.color,
-  Neutral: EMOTION_META.Neutral.color,
-  Concerned: EMOTION_META.Concerned.color,
-  Angry: EMOTION_META.Angry.color,
-  Fear: EMOTION_META.Fear.color,
-  Distress: EMOTION_META.Distress.color,
-  Panic: EMOTION_META.Panic.color
-}
 
 export default function AdminAnalytics() {
   const [data, setData] = useState(null)

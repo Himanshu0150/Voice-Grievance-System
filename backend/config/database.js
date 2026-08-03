@@ -281,16 +281,6 @@ async function initializeDatabase() {
     console.log('[DB] Migrated complaints table v3: Critical priority, extended statuses, anonymous, ETA, impact score, officer recommendation');
   }
 
-  const complaintColsV4 = db.exec("PRAGMA table_info(complaints)")[0]?.values || [];
-  const hasEmotion = complaintColsV4.some(c => c[1] === 'emotion');
-  if (!hasEmotion) {
-    db.run("ALTER TABLE complaints ADD COLUMN emotion TEXT");
-    db.run("ALTER TABLE complaints ADD COLUMN emotionConfidence REAL");
-    db.run("ALTER TABLE complaints ADD COLUMN emotionReason TEXT");
-    db.exec("CREATE INDEX IF NOT EXISTS idx_complaints_emotion ON complaints(emotion)");
-    console.log('[DB] Migrated complaints table v4: added emotion detection columns');
-  }
-
   db.run(`CREATE TABLE IF NOT EXISTS complaint_images (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     complaintId INTEGER NOT NULL,
